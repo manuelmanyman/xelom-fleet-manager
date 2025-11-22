@@ -207,6 +207,10 @@
       font-size: 15px;
       margin-bottom: 6px;
     }
+    .groomer-popup-details .address-link {
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -368,10 +372,12 @@
                 <input id="skiAreaName" value="${data.skiAreaName||""}">
                 <label>Address</label>
                 <input id="skiAreaAddress" value="${data.skiAreaAddress||""}">
+                <div id="skiAreaAddressLink" class="address-link"></div>
                 <label>Hotel Name</label>
                 <input id="hotelName" value="${data.hotelName||""}">
                 <label>Hotel Address</label>
                 <input id="hotelAddress" value="${data.hotelAddress||""}">
+                <div id="hotelAddressLink" class="address-link"></div>
               </div>
             </div>
             <div class="popup-actions">
@@ -427,6 +433,26 @@
             imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
           });
         }
+
+        // Address to Google Maps link logic
+        function updateAddressLink(inputId, linkId) {
+          const input = popupEl.querySelector(`#${inputId}`);
+          const linkDiv = popupEl.querySelector(`#${linkId}`);
+          if (input && linkDiv) {
+            const setLink = (address) => {
+              if (address) {
+                const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
+                linkDiv.innerHTML = `<a href="${url}" target="_blank" style="color:#4af;">Open in Google Maps</a>`;
+              } else {
+                linkDiv.innerHTML = "";
+              }
+            };
+            setLink(input.value.trim());
+            input.addEventListener('input', () => setLink(input.value.trim()));
+          }
+        }
+        updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
+        updateAddressLink('hotelAddress', 'hotelAddressLink');
 
         saveBtn.addEventListener('click', async () => {
           const inputs = popupEl.querySelectorAll('input, select');
