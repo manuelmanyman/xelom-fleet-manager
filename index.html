@@ -3,10 +3,10 @@
 <head>
   <title>Xelom Fleet Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- App icon for browser tab and mobile -->
-  <link rel="icon" type="image/png" href="appiconblack.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="appiconblack.png" sizes="192x192">
+  <link rel="icon" type="image/png" href="app-icon-black.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="app-icon-black.png" sizes="192x192">
   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
     body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
     h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
@@ -150,7 +150,6 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body>
   <h1>
@@ -183,11 +182,25 @@
     <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
   </div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([46.5, 11.3], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.appspot.com",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     // --- ICONS ---
     const icons = {
@@ -203,10 +216,7 @@
 
     // Marker registry
     let markersMap = {}; // id -> marker
-
-    // Load saved markers
-    const saved = JSON.parse(localStorage.getItem("xelomMarkers") || "[]");
-    saved.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id));
+    let allMarkers = []; // for search/filter
 
     // --- Drag and Drop logic ---
     let dragType = null;
@@ -229,18 +239,16 @@
     mapDiv.addEventListener('drop', function(e) {
       e.preventDefault();
       if (!dragType) return;
-      // Get map coordinates from pixel position
       const rect = mapDiv.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const latlng = map.containerPointToLatLng([x, y]);
-      addMarker(dragType, latlng, {}, makeId());
+      addMarker(dragType, latlng, {}, makeId(), true);
       dragType = null;
     });
 
     // --- ADD MARKER ---
-    function addMarker(type, latlng, data={}, id) {
-      // Choose correct icon for groomer status
+    function addMarker(type, latlng, data={}, id, saveToDb=false) {
       let icon = icons[type];
       if (type === 'groomer' && data.status === 'Issue') {
         icon = icons.groomerissues;
@@ -306,17 +314,16 @@
 
       marker.bindPopup(formHtml);
 
-      // Bind actions when popup opens (we get real DOM + marker in scope)
       marker.on('popupopen', () => {
         const popupEl = marker.getPopup().getElement();
         const saveBtn = popupEl.querySelector('.save-btn');
         const removeBtn = popupEl.querySelector('.remove-btn');
 
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
           const inputs = popupEl.querySelectorAll('input, select');
           const values = {};
           inputs.forEach(i => values[i.id] = i.value);
-          saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
 
           // Icon switching logic for groomer
           if (marker.options.markerType === 'groomer') {
@@ -330,63 +337,79 @@
           alert('Saved!');
         });
 
-        removeBtn.addEventListener('click', () => {
-          removeMarker(marker.options.markerId);
+        removeBtn.addEventListener('click', async () => {
+          await removeMarker(marker.options.markerId);
           map.removeLayer(marker);
           delete markersMap[marker.options.markerId];
         });
       });
 
       // Save initial marker (if not already present)
-      saveMarker(marker.options.markerId, type, latlng, data);
+      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
 
       // Update saved position on drag
-      marker.on('dragend', ev => {
+      marker.on('dragend', async ev => {
         const pos = ev.target.getLatLng();
-        updateMarkerPosition(marker.options.markerId, pos);
+        await updateMarkerPosition(marker.options.markerId, pos);
       });
     }
 
-    function getMarkers() {
-      return JSON.parse(localStorage.getItem('xelomMarkers') || '[]');
-    }
-    function setMarkers(arr) {
-      localStorage.setItem('xelomMarkers', JSON.stringify(arr));
-    }
-
-    function saveMarker(id, type, latlng, data) {
-      let markers = getMarkers();
-      const idx = markers.findIndex(m => m.id === id);
-      const payload = { id, type, lat: latlng.lat, lng: latlng.lng, data };
-      if (idx >= 0) {
-        markers[idx] = payload;
-      } else {
-        markers.push(payload);
-      }
-      setMarkers(markers);
+    // --- Firestore marker functions ---
+    async function saveMarker(id, type, latlng, data) {
+      await setDoc(doc(db, "markers", id), {
+        id, type, lat: latlng.lat, lng: latlng.lng, data
+      });
     }
 
-    function updateMarkerPosition(id, latlng) {
-      let markers = getMarkers();
-      const idx = markers.findIndex(m => m.id === id);
-      if (idx >= 0) {
-        markers[idx].lat = latlng.lat;
-        markers[idx].lng = latlng.lng;
-        setMarkers(markers);
-      }
+    async function updateMarkerPosition(id, latlng) {
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
+        id,
+        lat: latlng.lat,
+        lng: latlng.lng
+      }, { merge: true });
     }
 
-    function removeMarker(id) {
-      let markers = getMarkers();
-      markers = markers.filter(m => m.id !== id);
-      setMarkers(markers);
+    async function removeMarker(id) {
+      await deleteDoc(doc(db, "markers", id));
     }
+
+    // --- Real-time sync with Firestore ---
+    function refreshMarkersFromFirestore() {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
+        // Remove all current markers
+        Object.values(markersMap).forEach(m => map.removeLayer(m));
+        markersMap = {};
+        allMarkers = [];
+        snapshot.forEach(docSnap => {
+          const m = docSnap.data();
+          allMarkers.push(m);
+        });
+        // Apply search filter if any
+        const q = document.getElementById('searchBox').value.trim().toLowerCase();
+        let toShow = allMarkers;
+        if (q) {
+          toShow = allMarkers.filter(m => {
+            if (String(m.id).toLowerCase().includes(q)) return true;
+            if (String(m.type).toLowerCase().includes(q)) return true;
+            if (m.data) {
+              for (const v of Object.values(m.data)) {
+                if (String(v).toLowerCase().includes(q)) return true;
+              }
+            }
+            return false;
+          });
+        }
+        toShow.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
+        applyFilters();
+      });
+    }
+    refreshMarkersFromFirestore();
 
     // --- Settings menu actions ---
     function syncMarkers() {
-      Object.values(markersMap).forEach(m => map.removeLayer(m));
-      markersMap = {};
-      getMarkers().forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id));
+      // No-op: Firestore is always in sync
       alert("Synced!");
     }
     function removeAllMarkers() {
@@ -395,20 +418,18 @@
         alert("Incorrect password.");
         return;
       }
-      Object.values(markersMap).forEach(m => map.removeLayer(m));
-      markersMap = {};
-      localStorage.removeItem('xelomMarkers');
+      // Remove all markers from Firestore
+      allMarkers.forEach(m => removeMarker(m.id));
       alert("All machines removed.");
     }
 
     // --- Dropdown toggle ---
-    function toggleMenu(id) {
+    window.toggleMenu = function(id) {
       document.querySelectorAll('.dropdown-menu').forEach(m => {
         if (m.id === id) m.classList.toggle('show');
         else m.classList.remove('show');
       });
-    }
-    // Close dropdowns when clicking outside
+    };
     document.addEventListener('click', (e) => {
       const hitDropdown = e.target.closest('.dropdown');
       const hitButton = e.target.closest('.dropdown > button');
@@ -435,35 +456,10 @@
     document.getElementById('layerCharger').addEventListener('change', applyFilters);
     document.getElementById('layerWorker').addEventListener('change', applyFilters);
 
-    // --- Robust Search functionality ---
+    // --- Search functionality ---
     const searchBox = document.getElementById('searchBox');
-    searchBox.addEventListener('input', (e) => {
-      const q = e.target.value.trim().toLowerCase();
-      const all = getMarkers();
-
-      // Remove all markers from the map and from markersMap
-      Object.values(markersMap).forEach(m => map.removeLayer(m));
-      markersMap = {};
-
-      if (!q) {
-        // If search is empty, show all markers
-        all.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
-        return;
-      }
-
-      // Otherwise, filter and show only matches
-      const matches = all.filter(m => {
-        if (String(m.id).toLowerCase().includes(q)) return true;
-        if (String(m.type).toLowerCase().includes(q)) return true;
-        if (m.data) {
-          for (const v of Object.values(m.data)) {
-            if (String(v).toLowerCase().includes(q)) return true;
-          }
-        }
-        return false;
-      });
-
-      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+    searchBox.addEventListener('input', () => {
+      refreshMarkersFromFirestore();
     });
 
     // --- Service Worker registration for PWA ---
