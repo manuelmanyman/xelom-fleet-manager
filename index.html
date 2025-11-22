@@ -3,7 +3,10 @@
 <head>
   <title>Xelom Fleet Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <!-- App icon for browser tab and mobile -->
+  <link rel="icon" type="image/png" href="appiconblack.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="appiconblack.png" sizes="192x192">
+  <link rel="manifest" href="manifest.json">
   <style>
     body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
     h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
@@ -88,7 +91,6 @@
     .toolbar img:active {
       cursor: grabbing;
     }
-    /* Popup styling */
     .popup-form {
       background: #121212;
       color: #f1f1f1;
@@ -148,6 +150,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body>
   <h1>
@@ -462,6 +465,17 @@
 
       matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
     });
+
+    // --- Service Worker registration for PWA ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+          // Registration successful
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>
