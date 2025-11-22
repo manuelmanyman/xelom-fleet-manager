@@ -318,6 +318,9 @@
       if (type === 'worker') {
         formHtml = `
           <div class="popup-form">
+            <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
+            <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
+            <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
             <label>Day Present</label><input type="date" id="day" value="${data.day||""}">
             <label>Planned End</label><input type="date" id="end" value="${data.end||""}">
             <div class="popup-actions">
