@@ -1,0 +1,7 @@
+// sw.js
+self.addEventListener('install', function(e) {
+  self.skipWaiting();
+});
+self.addEventListener('fetch', function(event) {
+  // You can add caching here if you want
+});
