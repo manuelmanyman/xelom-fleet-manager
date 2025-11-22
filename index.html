@@ -207,7 +207,8 @@
       font-size: 15px;
       margin-bottom: 6px;
     }
-    .groomer-popup-details .address-link {
+    .groomer-popup-details .address-link,
+    .groomer-popup-details .phone-link {
       margin-bottom: 6px;
       font-size: 14px;
     }
@@ -360,12 +361,15 @@
                 <label>Responsible</label>
                 <input id="responsibleName" placeholder="Name" value="${data.responsibleName||""}">
                 <input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||""}">
+                <div id="responsiblePhoneLink" class="phone-link"></div>
                 <label>Driver</label>
                 <input id="driverName" placeholder="Name" value="${data.driverName||""}">
                 <input id="driverPhone" placeholder="Phone" value="${data.driverPhone||""}">
+                <div id="driverPhoneLink" class="phone-link"></div>
                 <label>Mechanic</label>
                 <input id="mechanicName" placeholder="Name" value="${data.mechanicName||""}">
                 <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
+                <div id="mechanicPhoneLink" class="phone-link"></div>
               </div>
               <div>
                 <label>Ski Area Name</label>
@@ -453,6 +457,27 @@
         }
         updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
         updateAddressLink('hotelAddress', 'hotelAddressLink');
+
+        // Phone to tel: link logic
+        function updatePhoneLink(inputId, linkId) {
+          const input = popupEl.querySelector(`#${inputId}`);
+          const linkDiv = popupEl.querySelector(`#${linkId}`);
+          if (input && linkDiv) {
+            const setLink = (phone) => {
+              const clean = phone.replace(/[^+\d]/g, '');
+              if (clean) {
+                linkDiv.innerHTML = `<a href="tel:${clean}" style="color:#4af;">Call</a>`;
+              } else {
+                linkDiv.innerHTML = "";
+              }
+            };
+            setLink(input.value.trim());
+            input.addEventListener('input', () => setLink(input.value.trim()));
+          }
+        }
+        updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
+        updatePhoneLink('driverPhone', 'driverPhoneLink');
+        updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
 
         saveBtn.addEventListener('click', async () => {
           const inputs = popupEl.querySelectorAll('input, select');
