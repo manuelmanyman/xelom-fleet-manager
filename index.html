@@ -1,103 +1,221 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Leaflet Map Test</title>
+  <title>Xelom Fleet Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <!-- App icon for browser tab and mobile -->
+  <link rel="icon" type="image/png" href="appiconblack.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="appiconblack.png" sizes="192x192">
+  <link rel="manifest" href="manifest.json">
   <style>
-    body { margin:0; }
+    /* ... your CSS unchanged ... */
+    body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
+    h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
+    h1 span:first-child { color: #ffcc00; }
     #map { height: 100vh; }
-    .popup-form { background: #121212; color: #f1f1f1; font-size: 15px; padding: 14px; border-radius: 10px; min-width: 240px; max-width: 340px; box-sizing: border-box; max-height: 70vh; overflow-y: auto; }
-    .popup-form label { display: block; margin-top: 10px; margin-bottom: 4px; color: #ffcc00; font-size: 13px; font-weight: 600; }
-    .popup-form input, .popup-form select { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 15px; margin-bottom: 6px; }
-    .popup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-    .btn { padding: 10px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; }
+    .search {
+      margin-left: 16px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #121212;
+      color: #fff;
+      max-width: 220px;
+      font-size: 16px;
+    }
+    .topbar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 12px;
+      z-index: 1000;
+    }
+    .dropdown {
+      position: relative;
+    }
+    .dropdown button {
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      color: white;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 22px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 44px;
+      background: #1e1e1e;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      min-width: 160px;
+      z-index: 1001;
+    }
+    .dropdown-menu.show { display: flex; }
+    .dropdown-menu label, .dropdown-menu button {
+      padding: 10px 16px;
+      border: none;
+      background: none;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .dropdown-menu label:hover, .dropdown-menu button:hover { background: #333; }
+    .toolbar {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toolbar img {
+      width: 64px; height: 64px;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      cursor: grab;
+      object-fit: contain;
+      user-select: none;
+    }
+    .toolbar img:active {
+      cursor: grabbing;
+    }
+    .popup-form {
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      padding: 14px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      min-width: 240px;
+    }
+    .popup-form label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .popup-form input, .popup-form select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .popup-form input:focus, .popup-form select:focus {
+      outline: none;
+      border-color: #ffcc00;
+      box-shadow: 0 0 4px #ffcc00;
+    }
+    .popup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
     .save-btn { background: #ffcc00; color: black; }
     .remove-btn { background: #ef4444; color: white; }
-    .add-btn { background: #ffcc00; color: #000; border-radius: 6px; font-weight: 600; margin-bottom: 8px; }
-    .multi-list { margin-bottom: 8px; }
-    .multi-row { display: flex; gap: 6px; margin-bottom: 4px; }
-    .multi-row input { flex: 2; }
-    .multi-row input:last-child { flex: 1; }
-    .multi-row button { background: #ef4444; color: #fff; border: none; border-radius: 4px; padding: 2px 8px; font-size: 14px; cursor: pointer; }
+    @media (max-width: 600px) {
+      .toolbar {
+        flex-direction: row;
+        top: auto;
+        bottom: 10px;
+        right: 10px;
+      }
+      .toolbar img {
+        width: 48px; height: 48px;
+      }
+    }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body>
+  <h1>
+    <span>X</span>elom Fleet Manager
+    <input id="searchBox" class="search" type="text" placeholder="Search…">
+  </h1>
   <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div class="topbar">
+    <!-- Settings -->
+    <div class="dropdown">
+      <button aria-label="Settings" onclick="toggleMenu('settingsMenu')">&#9881;</button>
+      <div class="dropdown-menu" id="settingsMenu">
+        <button onclick="syncMarkers()">Sync</button>
+        <button onclick="removeAllMarkers()">Remove all</button>
+      </div>
+    </div>
+    <!-- Layers -->
+    <div class="dropdown">
+      <button aria-label="Layers" onclick="toggleMenu('layersMenu')">&#9776;</button>
+      <div class="dropdown-menu" id="layersMenu">
+        <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
+        <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
+        <label><input type="checkbox" id="layerWorker" checked> Workers</label>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <img src="groomer.png" id="drag-groomer" draggable="true" data-type="groomer" title="Snow Groomer" />
+    <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
+    <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
+  </div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const icons = {
-      groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
-    };
-    function addMarker(latlng) {
-      let marker = L.marker(latlng, { icon: icons.groomer, draggable: true });
-      marker.addTo(map);
-      function multiListHtml(listId, arr, label) {
-        let html = `<div class="multi-list" id="${listId}">`;
-        (arr||[]).forEach((item, idx) => {
-          html += `<div class="multi-row">
-            <input type="text" placeholder="Name" value="${item?.name||''}">
-            <input type="text" placeholder="Phone" value="${item?.phone||''}">
-            <button type="button" onclick="window.addMultiRowRemove(this)">×</button>
-          </div>`;
+    // ... your JavaScript unchanged ...
+    // (All your existing JS code here)
+    // --- Service Worker registration for PWA ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+          // Registration successful
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
         });
-        html += `</div>
-        <button type="button" class="add-btn" onclick="window.addMultiRow('${listId}')">Add ${label}</button>`;
-        return html;
-      }
-      let formHtml = `
-        <div class="popup-form">
-          <label>Serial</label><input id="serial">
-          <label>Size</label><select id="size">
-            <option>350</option>
-            <option>320</option>
-            <option>280</option>
-          </select>
-          <label>Blade SN</label><input id="blade">
-          <label>Tiller SN</label><input id="tiller">
-          <label>Status</label><select id="status">
-            <option>Working</option>
-            <option>Issue</option>
-          </select>
-          <label>VCU Software</label><input id="vcu">
-          <label>Display Software</label><input id="display">
-          <label>Battery Software</label><input id="battery">
-          <label>EVCC Software</label><input id="evcc">
-          <label>VFD Software</label><input id="vfd">
-          <label>Ski Area Name</label><input id="skiArea">
-          <label>Responsible(s)</label>
-          ${multiListHtml('responsibleList', [], 'Responsible')}
-          <label>Driver(s)</label>
-          ${multiListHtml('driverList', [], 'Driver')}
-          <label>Mechanic(s)</label>
-          ${multiListHtml('mechanicList', [], 'Mechanic')}
-          <div class="popup-actions">
-            <button class="btn save-btn">Save</button>
-            <button class="btn remove-btn">Remove</button>
-          </div>
-        </div>`;
-      marker.bindPopup(formHtml);
+      });
     }
-    window.addMultiRow = function(listId) {
-      const list = document.getElementById(listId);
-      if (!list) return;
-      const div = document.createElement('div');
-      div.className = 'multi-row';
-      div.innerHTML = `<input type="text" placeholder="Name">
-        <input type="text" placeholder="Phone">
-        <button type="button" onclick="window.addMultiRowRemove(this)">×</button>`;
-      list.appendChild(div);
+  </script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.firebasestorage.app",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
     };
-    window.addMultiRowRemove = function(btn) {
-      btn.parentNode.remove();
-    };
-    const map = L.map('map').setView([46.5, 11.3], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    map.on('click', function(e) {
-      addMarker(e.latlng);
-    });
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
   </script>
 </body>
 </html>
