@@ -3,12 +3,12 @@
   "short_name": "Xelom",
   "icons": [
     {
-      "src": "app-icon-black.png",
+      "src": "appiconblack.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "app-icon-black.png",
+      "src": "appiconblack.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -18,3 +18,4 @@
   "background_color": "#000000",
   "theme_color": "#ffcc00"
 }
+
