@@ -190,12 +190,13 @@
     <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
     <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
   </div>
-  <!-- Leaflet and Firebase as global scripts -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js"></script>
-  <script>
-    // Firebase config and initialization
+  <!-- Leaflet and Firebase as ES modules -->
+  <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
       authDomain: "xelom-fleet-manager.firebaseapp.com",
@@ -205,8 +206,10 @@
       appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
       measurementId: "G-G63KR8F5X9"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     // --- ICONS ---
     const icons = {
@@ -371,17 +374,15 @@
 
     // --- Firestore marker functions ---
     async function saveMarker(id, type, latlng, data) {
-      await db.collection("markers").doc(id).set({
+      await setDoc(doc(db, "markers", id), {
         id, type, lat: latlng.lat, lng: latlng.lng, data
       });
     }
 
     async function updateMarkerPosition(id, latlng) {
-      const markerDoc = db.collection("markers").doc(id);
-      const docSnap = await markerDoc.get();
-      let markerData = docSnap.exists ? docSnap.data() : {};
-      await markerDoc.set({
-        ...markerData,
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
         id,
         lat: latlng.lat,
         lng: latlng.lng
@@ -389,12 +390,12 @@
     }
 
     async function removeMarker(id) {
-      await db.collection("markers").doc(id).delete();
+      await deleteDoc(doc(db, "markers", id));
     }
 
     // --- Real-time sync with Firestore ---
     function refreshMarkersFromFirestore() {
-      db.collection("markers").onSnapshot((snapshot) => {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
         // Remove all current markers
         Object.values(markersMap).forEach(m => map.removeLayer(m));
         markersMap = {};
