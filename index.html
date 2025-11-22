@@ -134,7 +134,7 @@
     }
     .popup-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
       margin-top: 10px;
     }
@@ -190,11 +190,13 @@
     <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
     <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
   </div>
-  <!-- Leaflet and Firebase as ES modules -->
-  <script type="module">
-    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  <!-- Leaflet and Firebase as global scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js"></script>
+  <script>
+    let currentGroomerId = null;
+    let currentLatLng = null;
 
     // Your web app's Firebase configuration
     const firebaseConfig = {
@@ -208,8 +210,8 @@
     };
 
     // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
     // --- ICONS ---
     const icons = {
@@ -281,24 +283,23 @@
         formHtml = `
            <div class="popup-form">
               <label>Serial</label><input id="serial" value="${data.serial||""}">
-               <label>Size</label><select id="size">
-                 <option ${data.size==="350"?"selected":""}>350</option>
-                 <option ${data.size==="320"?"selected":""}>320</option>
-                 <option ${data.size==="280"?"selected":""}>280</option>
-                </select>
-               <label>Blade SN</label><input id="blade" value="${data.blade||""}">
-               <label>Tiller SN</label><input id="tiller" value="${data.tiller||""}">
-               <label>Status</label><select id="status">
-                 <option ${data.status==="Working"?"selected":""}>Working</option>
-                 <option ${data.status==="Issue"?"selected":""}>Issue</option>
-               </select>
-               <div class="popup-actions" style="grid-template-columns: 1fr 1fr 1fr;">
-                 <button class="btn save-btn">Save</button>
-                 <button class="btn remove-btn">Remove</button>
-                 <button class="btn details-btn" style="background:#222; color:#ffcc00; border:1px solid #ffcc00;">Details</button>
-               </div>
-             </div>`;
-
+              <label>Size</label><select id="size">
+                <option ${data.size==="350"?"selected":""}>350</option>
+                <option ${data.size==="320"?"selected":""}>320</option>
+                <option ${data.size==="280"?"selected":""}>280</option>
+              </select>
+              <label>Blade SN</label><input id="blade" value="${data.blade||""}">
+              <label>Tiller SN</label><input id="tiller" value="${data.tiller||""}">
+              <label>Status</label><select id="status">
+                <option ${data.status==="Working"?"selected":""}>Working</option>
+                <option ${data.status==="Issue"?"selected":""}>Issue</option>
+              </select>
+              <div class="popup-actions" style="grid-template-columns: 1fr 1fr 1fr;">
+                <button class="btn save-btn">Save</button>
+                <button class="btn remove-btn">Remove</button>
+                <button class="btn details-btn" style="background:#222; color:#ffcc00; border:1px solid #ffcc00;">Details</button>
+              </div>
+            </div>`;
       }
       if (type === 'charger') {
         formHtml = `
@@ -334,45 +335,54 @@
 
       marker.bindPopup(formHtml);
 
-      
-marker.on('popupopen', () => {
-  const popupEl = marker.getPopup().getElement();
-  const saveBtn = popupEl.querySelector('.save-btn');
-  const removeBtn = popupEl.querySelector('.remove-btn');
-  const detailsBtn = popupEl.querySelector('.details-btn');
+      marker.on('popupopen', () => {
+        const popupEl = marker.getPopup().getElement();
+        const saveBtn = popupEl.querySelector('.save-btn');
+        const removeBtn = popupEl.querySelector('.remove-btn');
+        const detailsBtn = popupEl.querySelector('.details-btn');
 
-  saveBtn.addEventListener('click', async () => {
-    const inputs = popupEl.querySelectorAll('input, select');
-    const values = {};
-    inputs.forEach(i => values[i.id] = i.value);
-    await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+        saveBtn && saveBtn.addEventListener('click', async () => {
+          const inputs = popupEl.querySelectorAll('input, select');
+          const values = {};
+          inputs.forEach(i => values[i.id] = i.value);
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
 
-    // Icon switching logic for groomer
-    if (marker.options.markerType === 'groomer') {
-      if (values.status === 'Issue') {
-        marker.setIcon(icons.groomerissues);
-      } else {
-        marker.setIcon(icons.groomer);
-      }
-    }
+          // Icon switching logic for groomer
+          if (marker.options.markerType === 'groomer') {
+            if (values.status === 'Issue') {
+              marker.setIcon(icons.groomerissues);
+            } else {
+              marker.setIcon(icons.groomer);
+            }
+          }
 
-    alert('Saved!');
-  });
+          alert('Saved!');
+        });
 
-  removeBtn.addEventListener('click', async () => {
-    await removeMarker(marker.options.markerId);
-    map.removeLayer(marker);
-    delete markersMap[marker.options.markerId];
-  });
+        removeBtn && removeBtn.addEventListener('click', async () => {
+          await removeMarker(marker.options.markerId);
+          map.removeLayer(marker);
+          delete markersMap[marker.options.markerId];
+        });
 
-  detailsBtn.addEventListener('click', () => {
-    const inputs = popupEl.querySelectorAll('input, select');
-    const values = {};
-    inputs.forEach(i => values[i.id] = i.value);
-    openGroomerDetails(values);
-  });
-});
-
+        detailsBtn && detailsBtn.addEventListener('click', () => {
+          const inputs = popupEl.querySelectorAll('input, select');
+          const values = {};
+          inputs.forEach(i => values[i.id] = i.value);
+          openGroomerDetails(
+            {
+              ...values,
+              status: values.status,
+              serial: values.serial,
+              size: values.size,
+              blade: values.blade,
+              tiller: values.tiller
+            },
+            marker.options.markerId,
+            marker.getLatLng()
+          );
+        });
+      });
 
       // Save initial marker (if not already present)
       if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
@@ -386,15 +396,17 @@ marker.on('popupopen', () => {
 
     // --- Firestore marker functions ---
     async function saveMarker(id, type, latlng, data) {
-      await setDoc(doc(db, "markers", id), {
+      await db.collection("markers").doc(id).set({
         id, type, lat: latlng.lat, lng: latlng.lng, data
       });
     }
 
     async function updateMarkerPosition(id, latlng) {
-      const markerDoc = doc(db, "markers", id);
-      await setDoc(markerDoc, {
-        ...(allMarkers.find(m => m.id === id) || {}),
+      const markerDoc = db.collection("markers").doc(id);
+      const docSnap = await markerDoc.get();
+      let markerData = docSnap.exists ? docSnap.data() : {};
+      await markerDoc.set({
+        ...markerData,
         id,
         lat: latlng.lat,
         lng: latlng.lng
@@ -402,12 +414,12 @@ marker.on('popupopen', () => {
     }
 
     async function removeMarker(id) {
-      await deleteDoc(doc(db, "markers", id));
+      await db.collection("markers").doc(id).delete();
     }
 
     // --- Real-time sync with Firestore ---
     function refreshMarkersFromFirestore() {
-      onSnapshot(collection(db, "markers"), (snapshot) => {
+      db.collection("markers").onSnapshot((snapshot) => {
         // Remove all current markers
         Object.values(markersMap).forEach(m => map.removeLayer(m));
         markersMap = {};
@@ -500,188 +512,180 @@ marker.on('popupopen', () => {
         });
       });
     }
-  </script>
-<!-- Groomer Details Modal -->
-<div id="groomerDetailsModal" style="display:none; position:fixed; top:40px; left:40px; width:420px; max-width:95vw; background:#121212; color:#fff; border-radius:16px; box-shadow:0 4px 32px #000a; z-index:2000; border:2px solid #ffcc00; overflow:hidden;">
-  <div style="display:flex; align-items:center; padding:16px 16px 0 16px;">
-    <img id="groomerDetailsImg" src="groomer.png" style="width:120px; height:120px; object-fit:contain; border-radius:12px; border:2px solid #ffcc00; background:#222; margin-right:16px;">
-    <div>
-      <div style="font-size:20px; font-weight:600; color:#ffcc00;" id="groomerDetailsSerial">Serial: </div>
-      <div style="font-size:16px; margin-top:4px;" id="groomerDetailsSize">Size: </div>
-      <div style="margin-top:10px;">
-        <span style="font-size:14px; color:#ffcc00;">Blade SN:</span>
-        <span id="groomerDetailsBlade"></span>
-        <span style="margin-left:16px; font-size:14px; color:#ffcc00;">Tiller SN:</span>
-        <span id="groomerDetailsTiller"></span>
-      </div>
-    </div>
-    <button onclick="closeGroomerDetails()" style="margin-left:auto; background:none; border:none; color:#fff; font-size:28px; cursor:pointer;">&times;</button>
-  </div>
-  <div style="padding:0 16px;">
-    <div style="display:flex; border-bottom:1px solid #333; margin-top:12px;">
-      <button class="groomer-tab-btn" onclick="showGroomerTab('software')" id="tabBtnSoftware" style="flex:1; background:none; border:none; color:#ffcc00; font-size:16px; padding:10px 0; font-weight:600; border-bottom:2px solid #ffcc00;">Software</button>
-      <button class="groomer-tab-btn" onclick="showGroomerTab('location')" id="tabBtnLocation" style="flex:1; background:none; border:none; color:#fff; font-size:16px; padding:10px 0;">Location</button>
-      <button class="groomer-tab-btn" onclick="showGroomerTab('reworks')" id="tabBtnReworks" style="flex:1; background:none; border:none; color:#fff; font-size:16px; padding:10px 0;">Reworks</button>
-    </div>
-    <div id="groomerTabSoftware" class="groomer-tab-content" style="display:block; padding:12px 0;">
-      <label>VCU Software</label>
-      <input id="groomerVCU" type="text" style="width:100%; margin-bottom:8px;">
-      <label>Display Software</label>
-      <input id="groomerDisplay" type="text" style="width:100%; margin-bottom:8px;">
-      <label>Battery Software</label>
-      <input id="groomerBattery" type="text" style="width:100%; margin-bottom:8px;">
-      <label>EVCC Software</label>
-      <input id="groomerEVCC" type="text" style="width:100%; margin-bottom:8px;">
-      <label>VFD Software</label>
-      <input id="groomerVFD" type="text" style="width:100%;">
-    </div>
-    <div id="groomerTabLocation" class="groomer-tab-content" style="display:none; padding:12px 0;">
-  <label>Ski Area Name</label>
-  <input id="groomerSkiArea" type="text" style="width:100%; margin-bottom:12px;">
-  
-  <div style="margin-bottom:12px;">
-    <label>Responsible(s)</label>
-    <div id="groomerResponsibleList"></div>
-    <button type="button" onclick="addResponsibleField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Responsible</button>
-  </div>
-  
-  <div style="margin-bottom:12px;">
-    <label>Driver(s)</label>
-    <div id="groomerDriverList"></div>
-    <button type="button" onclick="addDriverField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Driver</button>
-  </div>
-  
-  <div style="margin-bottom:12px;">
-    <label>Mechanic(s)</label>
-    <div id="groomerMechanicList"></div>
-    <button type="button" onclick="addMechanicField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Mechanic</button>
-  </div>
-</div>
 
-    <div id="groomerTabReworks" class="groomer-tab-content" style="display:none; padding:12px 0;">
-      <div style="color:#888;">Reworks tab coming soon…</div>
-    </div>
-    <div style="display:flex; gap:10px; margin:18px 0 10px 0;">
-      <button class="btn save-btn" onclick="saveGroomerDetails()">Save</button>
-      <button class="btn remove-btn" onclick="removeGroomerDetails()">Remove</button>
-    </div>
-  </div>
-</div>
-<script>
-  // Modal logic
-  let currentGroomerData = null;
-  function openGroomerDetails(data) {
-    currentGroomerData = data;
-    document.getElementById('groomerDetailsModal').style.display = 'block';
-    document.getElementById('groomerDetailsImg').src = (data.status === 'Issue') ? 'groomerissues.png' : 'groomer.png';
-    document.getElementById('groomerDetailsSerial').textContent = 'Serial: ' + (data.serial || '');
-    document.getElementById('groomerDetailsSize').textContent = 'Size: ' + (data.size || '');
-    document.getElementById('groomerDetailsBlade').textContent = data.blade || '';
-    document.getElementById('groomerDetailsTiller').textContent = data.tiller || '';
-    document.getElementById('groomerVCU').value = data.vcu || '';
-    document.getElementById('groomerDisplay').value = data.display || '';
-    document.getElementById('groomerBattery').value = data.battery || '';
-    document.getElementById('groomerEVCC').value = data.evcc || '';
-    document.getElementById('groomerVFD').value = data.vfd || '';
-    document.getElementById('groomerSkiArea').value = data.skiArea || '';
-    // Populate multi-fields
-    setMultiField('groomerResponsibleList', data.responsibles || []);
-    setMultiField('groomerDriverList', data.drivers || []);
-    setMultiField('groomerMechanicList', data.mechanics || []);
-    showGroomerTab('software');
-  }
-  function closeGroomerDetails() {
-    document.getElementById('groomerDetailsModal').style.display = 'none';
-  }
-  function showGroomerTab(tab) {
-    ['software','location','reworks'].forEach(t => {
-      document.getElementById('groomerTab'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = (t===tab)?'block':'none';
-      document.getElementById('tabBtn'+t.charAt(0).toUpperCase()+t.slice(1)).style.color = (t===tab)?'#ffcc00':'#fff';
-      document.getElementById('tabBtn'+t.charAt(0).toUpperCase()+t.slice(1)).style.borderBottom = (t===tab)?'2px solid #ffcc00':'none';
-    });
-  }
-  // Multi-field helpers
-  function setMultiField(id, arr) {
-    const list = document.getElementById(id);
-    list.innerHTML = '';
-    arr.forEach((item, idx) => {
+    // --- Modal logic and helpers ---
+    function openGroomerDetails(data, markerId, latlng) {
+      currentGroomerId = markerId;
+      currentLatLng = latlng;
+      document.getElementById('groomerDetailsModal').style.display = 'block';
+      document.getElementById('groomerDetailsImg').src = (data.status === 'Issue') ? 'groomerissues.png' : 'groomer.png';
+      document.getElementById('groomerDetailsSerial').textContent = 'Serial: ' + (data.serial || '');
+      document.getElementById('groomerDetailsSize').textContent = 'Size: ' + (data.size || '');
+      document.getElementById('groomerDetailsBlade').textContent = data.blade || '';
+      document.getElementById('groomerDetailsTiller').textContent = data.tiller || '';
+      document.getElementById('groomerVCU').value = data.vcu || '';
+      document.getElementById('groomerDisplay').value = data.display || '';
+      document.getElementById('groomerBattery').value = data.battery || '';
+      document.getElementById('groomerEVCC').value = data.evcc || '';
+      document.getElementById('groomerVFD').value = data.vfd || '';
+      document.getElementById('groomerSkiArea').value = data.skiArea || '';
+      setMultiField('groomerResponsibleList', data.responsibles || []);
+      setMultiField('groomerDriverList', data.drivers || []);
+      setMultiField('groomerMechanicList', data.mechanics || []);
+      showGroomerTab('software');
+    }
+    function closeGroomerDetails() {
+      document.getElementById('groomerDetailsModal').style.display = 'none';
+    }
+    function showGroomerTab(tab) {
+      ['software','location','reworks'].forEach(t => {
+        document.getElementById('groomerTab'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = (t===tab)?'block':'none';
+        document.getElementById('tabBtn'+t.charAt(0).toUpperCase()+t.slice(1)).style.color = (t===tab)?'#ffcc00':'#fff';
+        document.getElementById('tabBtn'+t.charAt(0).toUpperCase()+t.slice(1)).style.borderBottom = (t===tab)?'2px solid #ffcc00':'none';
+      });
+    }
+    function setMultiField(id, arr) {
+      const list = document.getElementById(id);
+      list.innerHTML = '';
+      arr.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.gap = '6px';
+        div.style.marginBottom = '4px';
+        div.innerHTML = `<input type="text" placeholder="Name" value="${item.name||''}" style="flex:2;">
+          <input type="text" placeholder="Phone" value="${item.phone||''}" style="flex:1;">
+          <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
+        list.appendChild(div);
+      });
+    }
+    function addResponsibleField() {
+      const list = document.getElementById('groomerResponsibleList');
       const div = document.createElement('div');
       div.style.display = 'flex';
       div.style.gap = '6px';
       div.style.marginBottom = '4px';
-      div.innerHTML = `<input type="text" placeholder="Name" value="${item.name||''}" style="flex:2;">
-        <input type="text" placeholder="Phone" value="${item.phone||''}" style="flex:1;">
+      div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
+        <input type="text" placeholder="Phone" style="flex:1;">
         <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
       list.appendChild(div);
-    });
-  }
-  function addResponsibleField() {
-    const list = document.getElementById('groomerResponsibleList');
-    const div = document.createElement('div');
-    div.style.display = 'flex';
-    div.style.gap = '6px';
-    div.style.marginBottom = '4px';
-    div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
-      <input type="text" placeholder="Phone" style="flex:1;">
-      <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
-    list.appendChild(div);
-  }
-  function addDriverField() {
-    const list = document.getElementById('groomerDriverList');
-    const div = document.createElement('div');
-    div.style.display = 'flex';
-    div.style.gap = '6px';
-    div.style.marginBottom = '4px';
-    div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
-      <input type="text" placeholder="Phone" style="flex:1;">
-      <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
-    list.appendChild(div);
-  }
-  function addMechanicField() {
-    const list = document.getElementById('groomerMechanicList');
-    const div = document.createElement('div');
-    div.style.display = 'flex';
-    div.style.gap = '6px';
-    div.style.marginBottom = '4px';
-    div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
-      <input type="text" placeholder="Phone" style="flex:1;">
-      <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
-    list.appendChild(div);
-  }
-  // Save/Remove handlers (replace with your logic)
-  function saveGroomerDetails() {
-  // Gather all fields
-  const data = {
-    serial: document.getElementById('groomerDetailsSerial').textContent.replace('Serial: ', ''),
-    size: document.getElementById('groomerDetailsSize').textContent.replace('Size: ', ''),
-    blade: document.getElementById('groomerDetailsBlade').textContent,
-    tiller: document.getElementById('groomerDetailsTiller').textContent,
-    vcu: document.getElementById('groomerVCU').value,
-    display: document.getElementById('groomerDisplay').value,
-    battery: document.getElementById('groomerBattery').value,
-    evcc: document.getElementById('groomerEVCC').value,
-    vfd: document.getElementById('groomerVFD').value,
-    skiArea: document.getElementById('groomerSkiArea').value,
-    responsibles: getMultiField('groomerResponsibleList'),
-    drivers: getMultiField('groomerDriverList'),
-    mechanics: getMultiField('groomerMechanicList')
-  };
-  // Save to Firestore or your backend here
-  // Example: await saveMarker(currentGroomerId, 'groomer', currentLatLng, data);
-  alert('Groomer details saved!');
-  closeGroomerDetails();
-}
-
-// Helper to get multi-fields
-function getMultiField(id) {
-  const list = document.getElementById(id);
-  return Array.from(list.children).map(div => {
-    const [name, phone] = div.querySelectorAll('input');
-    return { name: name.value, phone: phone.value };
-  });
-}
-
-</script>
-
+    }
+    function addDriverField() {
+      const list = document.getElementById('groomerDriverList');
+      const div = document.createElement('div');
+      div.style.display = 'flex';
+      div.style.gap = '6px';
+      div.style.marginBottom = '4px';
+      div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
+        <input type="text" placeholder="Phone" style="flex:1;">
+        <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
+      list.appendChild(div);
+    }
+    function addMechanicField() {
+      const list = document.getElementById('groomerMechanicList');
+      const div = document.createElement('div');
+      div.style.display = 'flex';
+      div.style.gap = '6px';
+      div.style.marginBottom = '4px';
+      div.innerHTML = `<input type="text" placeholder="Name" style="flex:2;">
+        <input type="text" placeholder="Phone" style="flex:1;">
+        <button onclick="this.parentNode.remove()" style="background:#ef4444; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:14px; cursor:pointer;">&times;</button>`;
+      list.appendChild(div);
+    }
+    function saveGroomerDetails() {
+      const data = {
+        serial: document.getElementById('groomerDetailsSerial').textContent.replace('Serial: ', ''),
+        size: document.getElementById('groomerDetailsSize').textContent.replace('Size: ', ''),
+        blade: document.getElementById('groomerDetailsBlade').textContent,
+        tiller: document.getElementById('groomerDetailsTiller').textContent,
+        vcu: document.getElementById('groomerVCU').value,
+        display: document.getElementById('groomerDisplay').value,
+        battery: document.getElementById('groomerBattery').value,
+        evcc: document.getElementById('groomerEVCC').value,
+        vfd: document.getElementById('groomerVFD').value,
+        skiArea: document.getElementById('groomerSkiArea').value,
+        responsibles: getMultiField('groomerResponsibleList'),
+        drivers: getMultiField('groomerDriverList'),
+        mechanics: getMultiField('groomerMechanicList')
+      };
+      saveMarker(currentGroomerId, 'groomer', currentLatLng, data);
+      alert('Groomer details saved!');
+      closeGroomerDetails();
+    }
+    function removeGroomerDetails() {
+      if (confirm('Remove this groomer?')) {
+        removeMarker(currentGroomerId);
+        closeGroomerDetails();
+      }
+    }
+    function getMultiField(id) {
+      const list = document.getElementById(id);
+      return Array.from(list.children).map(div => {
+        const [name, phone] = div.querySelectorAll('input');
+        return { name: name.value, phone: phone.value };
+      });
+    }
+  </script>
+  <!-- Groomer Details Modal -->
+  <div id="groomerDetailsModal" style="display:none; position:fixed; top:40px; left:40px; width:420px; max-width:95vw; background:#121212; color:#fff; border-radius:16px; box-shadow:0 4px 32px #000a; z-index:2000; border:2px solid #ffcc00; overflow:hidden;">
+    <div style="display:flex; align-items:center; padding:16px 16px 0 16px;">
+      <img id="groomerDetailsImg" src="groomer.png" style="width:120px; height:120px; object-fit:contain; border-radius:12px; border:2px solid #ffcc00; background:#222; margin-right:16px;">
+      <div>
+        <div style="font-size:20px; font-weight:600; color:#ffcc00;" id="groomerDetailsSerial">Serial: </div>
+        <div style="font-size:16px; margin-top:4px;" id="groomerDetailsSize">Size: </div>
+        <div style="margin-top:10px;">
+          <span style="font-size:14px; color:#ffcc00;">Blade SN:</span>
+          <span id="groomerDetailsBlade"></span>
+          <span style="margin-left:16px; font-size:14px; color:#ffcc00;">Tiller SN:</span>
+          <span id="groomerDetailsTiller"></span>
+        </div>
+      </div>
+      <button onclick="closeGroomerDetails()" style="margin-left:auto; background:none; border:none; color:#fff; font-size:28px; cursor:pointer;">&times;</button>
+    </div>
+    <div style="padding:0 16px;">
+      <div style="display:flex; border-bottom:1px solid #333; margin-top:12px;">
+        <button class="groomer-tab-btn" onclick="showGroomerTab('software')" id="tabBtnSoftware" style="flex:1; background:none; border:none; color:#ffcc00; font-size:16px; padding:10px 0; font-weight:600; border-bottom:2px solid #ffcc00;">Software</button>
+        <button class="groomer-tab-btn" onclick="showGroomerTab('location')" id="tabBtnLocation" style="flex:1; background:none; border:none; color:#fff; font-size:16px; padding:10px 0;">Location</button>
+        <button class="groomer-tab-btn" onclick="showGroomerTab('reworks')" id="tabBtnReworks" style="flex:1; background:none; border:none; color:#fff; font-size:16px; padding:10px 0;">Reworks</button>
+      </div>
+      <div id="groomerTabSoftware" class="groomer-tab-content" style="display:block; padding:12px 0;">
+        <label>VCU Software</label>
+        <input id="groomerVCU" type="text" style="width:100%; margin-bottom:8px;">
+        <label>Display Software</label>
+        <input id="groomerDisplay" type="text" style="width:100%; margin-bottom:8px;">
+        <label>Battery Software</label>
+        <input id="groomerBattery" type="text" style="width:100%; margin-bottom:8px;">
+        <label>EVCC Software</label>
+        <input id="groomerEVCC" type="text" style="width:100%; margin-bottom:8px;">
+        <label>VFD Software</label>
+        <input id="groomerVFD" type="text" style="width:100%;">
+      </div>
+      <div id="groomerTabLocation" class="groomer-tab-content" style="display:none; padding:12px 0;">
+        <label>Ski Area Name</label>
+        <input id="groomerSkiArea" type="text" style="width:100%; margin-bottom:12px;">
+        <div style="margin-bottom:12px;">
+          <label>Responsible(s)</label>
+          <div id="groomerResponsibleList"></div>
+          <button type="button" onclick="addResponsibleField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Responsible</button>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>Driver(s)</label>
+          <div id="groomerDriverList"></div>
+          <button type="button" onclick="addDriverField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Driver</button>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>Mechanic(s)</label>
+          <div id="groomerMechanicList"></div>
+          <button type="button" onclick="addMechanicField()" style="margin-top:4px; background:#ffcc00; color:#000; border:none; border-radius:6px; padding:6px 12px; font-weight:600; cursor:pointer;">Add Mechanic</button>
+        </div>
+      </div>
+      <div id="groomerTabReworks" class="groomer-tab-content" style="display:none; padding:12px 0;">
+        <div style="color:#888;">Reworks tab coming soon…</div>
+      </div>
+      <div style="display:flex; gap:10px; margin:18px 0 10px 0;">
+        <button class="btn save-btn" onclick="saveGroomerDetails()">Save</button>
+        <button class="btn remove-btn" onclick="removeGroomerDetails()">Remove</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
