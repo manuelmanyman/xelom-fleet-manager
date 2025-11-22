@@ -3,12 +3,11 @@
 <head>
   <title>Xelom Fleet Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- App icon for browser tab and mobile -->
-  <link rel="icon" type="image/png" href="appiconblack.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="appiconblack.png" sizes="192x192">
+  <link rel="icon" type="image/png" href="app-icon-black.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="app-icon-black.png" sizes="192x192">
   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
-    /* ... your CSS unchanged ... */
     body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
     h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
     h1 span:first-child { color: #ffcc00; }
@@ -57,8 +56,10 @@
       border-radius: 8px;
       display: none;
       flex-direction: column;
-      min-width: 160px;
+      min-width: 200px;
       z-index: 1001;
+      box-sizing: border-box;
+      padding: 0;
     }
     .dropdown-menu.show { display: flex; }
     .dropdown-menu label, .dropdown-menu button {
@@ -69,6 +70,9 @@
       text-align: left;
       cursor: pointer;
       font-size: 15px;
+      white-space: nowrap;
+      width: 100%;
+      box-sizing: border-box;
     }
     .dropdown-menu label:hover, .dropdown-menu button:hover { background: #333; }
     .toolbar {
@@ -100,6 +104,8 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.6);
       min-width: 240px;
+      max-width: 320px;
+      box-sizing: border-box;
     }
     .popup-form label {
       display: block;
@@ -111,6 +117,8 @@
     }
     .popup-form input, .popup-form select {
       width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
       padding: 10px;
       border-radius: 8px;
       border: 1px solid #333;
@@ -151,7 +159,6 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body>
   <h1>
@@ -183,10 +190,294 @@
     <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
     <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
   </div>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    // ... your JavaScript unchanged ...
-    // (All your existing JS code here)
+  <!-- Leaflet and Firebase as ES modules -->
+  <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.appspot.com",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- ICONS ---
+    const icons = {
+      groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      worker: L.icon({ iconUrl: 'van.png',     iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
+    };
+
+    function makeId() {
+      return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // --- Map initialization ---
+    const map = L.map('map').setView([46.5, 11.3], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker registry
+    let markersMap = {}; // id -> marker
+    let allMarkers = []; // for search/filter
+
+    // --- Drag and Drop logic ---
+    let dragType = null;
+    document.querySelectorAll('.toolbar img[draggable="true"]').forEach(img => {
+      img.addEventListener('dragstart', e => {
+        dragType = img.getAttribute('data-type');
+        e.dataTransfer.setData('text/plain', dragType);
+      });
+      img.addEventListener('dragend', e => {
+        dragType = null;
+      });
+    });
+
+    // Prevent default dragover on map container
+    const mapDiv = document.getElementById('map');
+    mapDiv.addEventListener('dragover', function(e) {
+      e.preventDefault();
+    });
+
+    mapDiv.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragType) return;
+      const rect = mapDiv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const latlng = map.containerPointToLatLng([x, y]);
+      addMarker(dragType, latlng, {}, makeId(), true);
+      dragType = null;
+    });
+
+    // --- ADD MARKER ---
+    function addMarker(type, latlng, data={}, id, saveToDb=false) {
+      let icon = icons[type];
+      if (type === 'groomer' && data.status === 'Issue') {
+        icon = icons.groomerissues;
+      }
+      if (markersMap[id]) return; // Prevent duplicate
+      const marker = L.marker(latlng, { icon: icon, draggable: true });
+      marker.addTo(map);
+      marker.options.markerId = id || makeId();
+      marker.options.markerType = type;
+      markersMap[marker.options.markerId] = marker;
+
+      // Build popup content
+      let formHtml = '';
+      if (type === 'groomer') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Serial</label><input id="serial" value="${data.serial||""}">
+            <label>Size</label><select id="size">
+              <option ${data.size==="350"?"selected":""}>350</option>
+              <option ${data.size==="320"?"selected":""}>320</option>
+              <option ${data.size==="280"?"selected":""}>280</option>
+            </select>
+            <label>Blade SN</label><input id="blade" value="${data.blade||""}">
+            <label>Tiller SN</label><input id="tiller" value="${data.tiller||""}">
+            <label>Status</label><select id="status">
+              <option ${data.status==="Working"?"selected":""}>Working</option>
+              <option ${data.status==="Issue"?"selected":""}>Issue</option>
+            </select>
+            <div class="popup-actions">
+              <button class="btn save-btn">Save</button>
+              <button class="btn remove-btn">Remove</button>
+            </div>
+          </div>`;
+      }
+      if (type === 'charger') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Power</label><select id="power">
+              <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
+              <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
+              <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
+            </select>
+            <label>Serial</label><input id="serial" value="${data.serial||""}">
+            <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
+            <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn">Save</button>
+              <button class="btn remove-btn">Remove</button>
+            </div>
+          </div>`;
+      }
+      if (type === 'worker') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
+            <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
+            <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
+            <label>Day Present</label><input type="date" id="day" value="${data.day||""}">
+            <label>Planned End</label><input type="date" id="end" value="${data.end||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn">Save</button>
+              <button class="btn remove-btn">Remove</button>
+            </div>
+          </div>`;
+      }
+
+      marker.bindPopup(formHtml);
+
+      marker.on('popupopen', () => {
+        const popupEl = marker.getPopup().getElement();
+        const saveBtn = popupEl.querySelector('.save-btn');
+        const removeBtn = popupEl.querySelector('.remove-btn');
+
+        saveBtn.addEventListener('click', async () => {
+          const inputs = popupEl.querySelectorAll('input, select');
+          const values = {};
+          inputs.forEach(i => values[i.id] = i.value);
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+
+          // Icon switching logic for groomer
+          if (marker.options.markerType === 'groomer') {
+            if (values.status === 'Issue') {
+              marker.setIcon(icons.groomerissues);
+            } else {
+              marker.setIcon(icons.groomer);
+            }
+          }
+
+          alert('Saved!');
+        });
+
+        removeBtn.addEventListener('click', async () => {
+          await removeMarker(marker.options.markerId);
+          map.removeLayer(marker);
+          delete markersMap[marker.options.markerId];
+        });
+      });
+
+      // Save initial marker (if not already present)
+      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
+
+      // Update saved position on drag
+      marker.on('dragend', async ev => {
+        const pos = ev.target.getLatLng();
+        await updateMarkerPosition(marker.options.markerId, pos);
+      });
+    }
+
+    // --- Firestore marker functions ---
+    async function saveMarker(id, type, latlng, data) {
+      await setDoc(doc(db, "markers", id), {
+        id, type, lat: latlng.lat, lng: latlng.lng, data
+      });
+    }
+
+    async function updateMarkerPosition(id, latlng) {
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
+        id,
+        lat: latlng.lat,
+        lng: latlng.lng
+      }, { merge: true });
+    }
+
+    async function removeMarker(id) {
+      await deleteDoc(doc(db, "markers", id));
+    }
+
+    // --- Real-time sync with Firestore ---
+    function refreshMarkersFromFirestore() {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
+        // Remove all current markers
+        Object.values(markersMap).forEach(m => map.removeLayer(m));
+        markersMap = {};
+        allMarkers = [];
+        snapshot.forEach(docSnap => {
+          const m = docSnap.data();
+          allMarkers.push(m);
+        });
+        // Apply search filter if any
+        const q = document.getElementById('searchBox').value.trim().toLowerCase();
+        let toShow = allMarkers;
+        if (q) {
+          toShow = allMarkers.filter(m => {
+            if (String(m.id).toLowerCase().includes(q)) return true;
+            if (String(m.type).toLowerCase().includes(q)) return true;
+            if (m.data) {
+              for (const v of Object.values(m.data)) {
+                if (String(v).toLowerCase().includes(q)) return true;
+              }
+            }
+            return false;
+          });
+        }
+        toShow.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
+        applyFilters();
+      });
+    }
+    refreshMarkersFromFirestore();
+
+    // --- Settings menu actions ---
+    window.syncMarkers = function() {
+      alert("Synced!");
+    };
+    window.removeAllMarkers = function() {
+      const pw = prompt("Enter password to remove all machines:");
+      if (pw !== "1111") {
+        alert("Incorrect password.");
+        return;
+      }
+      allMarkers.forEach(m => removeMarker(m.id));
+      alert("All machines removed.");
+    };
+
+    // --- Dropdown toggle ---
+    window.toggleMenu = function(id) {
+      document.querySelectorAll('.dropdown-menu').forEach(m => {
+        if (m.id === id) m.classList.toggle('show');
+        else m.classList.remove('show');
+      });
+    };
+    document.addEventListener('click', (e) => {
+      const hitDropdown = e.target.closest('.dropdown');
+      const hitButton = e.target.closest('.dropdown > button');
+      if (!hitDropdown && !hitButton) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // --- Layers filtering ---
+    function applyFilters() {
+      const showG = document.getElementById('layerGroomer').checked;
+      const showC = document.getElementById('layerCharger').checked;
+      const showW = document.getElementById('layerWorker').checked;
+      Object.values(markersMap).forEach(m => {
+        const type = m.options.markerType;
+        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || (type==='worker' && !showW)) {
+          map.removeLayer(m);
+        } else {
+          map.addLayer(m);
+        }
+      });
+    }
+    document.getElementById('layerGroomer').addEventListener('change', applyFilters);
+    document.getElementById('layerCharger').addEventListener('change', applyFilters);
+    document.getElementById('layerWorker').addEventListener('change', applyFilters);
+
+    // --- Search functionality ---
+    const searchBox = document.getElementById('searchBox');
+    searchBox.addEventListener('input', () => {
+      refreshMarkersFromFirestore();
+    });
+
     // --- Service Worker registration for PWA ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
@@ -197,25 +488,6 @@
         });
       });
     }
-  </script>
-  <!-- Firebase SDKs -->
-  <script type="module">
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
-      authDomain: "xelom-fleet-manager.firebaseapp.com",
-      projectId: "xelom-fleet-manager",
-      storageBucket: "xelom-fleet-manager.firebasestorage.app",
-      messagingSenderId: "173013299862",
-      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
-      measurementId: "G-G63KR8F5X9"
-    };
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
   </script>
 </body>
 </html>
