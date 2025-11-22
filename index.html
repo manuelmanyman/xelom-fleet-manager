@@ -181,11 +181,11 @@
     <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
     <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
   </div>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <!-- Firebase SDKs -->
+  <!-- Leaflet and Firebase as ES modules -->
   <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
     // Your web app's Firebase configuration
     const firebaseConfig = {
@@ -213,6 +213,12 @@
     function makeId() {
       return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     }
+
+    // --- Map initialization ---
+    const map = L.map('map').setView([46.5, 11.3], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
     // Marker registry
     let markersMap = {}; // id -> marker
@@ -408,20 +414,18 @@
     refreshMarkersFromFirestore();
 
     // --- Settings menu actions ---
-    function syncMarkers() {
-      // No-op: Firestore is always in sync
+    window.syncMarkers = function() {
       alert("Synced!");
-    }
-    function removeAllMarkers() {
+    };
+    window.removeAllMarkers = function() {
       const pw = prompt("Enter password to remove all machines:");
       if (pw !== "1111") {
         alert("Incorrect password.");
         return;
       }
-      // Remove all markers from Firestore
       allMarkers.forEach(m => removeMarker(m.id));
       alert("All machines removed.");
-    }
+    };
 
     // --- Dropdown toggle ---
     window.toggleMenu = function(id) {
