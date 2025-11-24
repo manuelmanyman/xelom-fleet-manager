@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Xelom Fleet Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="app-icon-black.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="app-icon-black.png" sizes="192x192">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
+    h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
+    h1 span:first-child { color: #ffcc00; }
+    #map { height: 100vh; }
+    .search {
+      margin-left: 16px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #121212;
+      color: #fff;
+      max-width: 220px;
+      font-size: 16px;
+    }
+    .filter-btn {
+      margin-left: 8px;
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      color: #ffcc00;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .filter-btn.active {
+      background: #ffcc00;
+      color: #222;
+    }
+    .filter-btn:hover {
+      background: #ffe066;
+      color: #222;
+    }
+    .topbar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 12px;
+      z-index: 1000;
+    }
+    .dropdown {
+      position: relative;
+    }
+    .dropdown button {
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      color: white;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 22px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 44px;
+      background: #1e1e1e;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      min-width: 200px;
+      z-index: 1001;
+      box-sizing: border-box;
+      padding: 0;
+    }
+    .dropdown-menu.show { display: flex; }
+    .dropdown-menu label, .dropdown-menu button {
+      padding: 10px 16px;
+      border: none;
+      background: none;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+      font-size: 15px;
+      white-space: nowrap;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .dropdown-menu label:hover, .dropdown-menu button:hover { background: #333; }
+    .toolbar {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toolbar img {
+      width: 64px; height: 64px;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      cursor: grab;
+      object-fit: contain;
+      user-select: none;
+    }
+    .toolbar img:active {
+      cursor: grabbing;
+    }
+    .custom-popup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #121212;
+      color: #f1f1f1;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.8);
+      min-width: 420px;
+      max-width: 750px;
+      max-height: 90vh;
+      overflow-y: auto;
+      z-index: 2000;
+      padding: 24px 32px 24px 24px;
+    }
+    .custom-popup .close-btn {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-size: 28px;
+      color: #ffcc00;
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 2001;
+    }
+    .popup-form {
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      padding: 0;
+      border-radius: 12px;
+      min-width: 420px;
+      max-width: 700px;
+      box-sizing: border-box;
+      border: none;
+    }
+    .popup-form label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .popup-form input, .popup-form select, .popup-form textarea {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+      transition: border-color 0.2s;
+    }
+    .popup-form input:focus, .popup-form select:focus, .popup-form textarea:focus {
+      outline: none;
+      border-color: #ffcc00;
+      box-shadow: 0 0 4px #ffcc00;
+    }
+    .popup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+    .save-btn { background: #ffcc00; color: black; }
+    .save-btn:hover { background: #ffe066; }
+    .remove-btn { background: #ef4444; color: white; }
+    .remove-btn:hover { background: #ff6666; }
+    /* Groomer popup custom styles */
+    .groomer-popup-flex {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .groomer-popup-img img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      display: block;
+    }
+    .groomer-popup-fields {
+      flex: 1;
+      min-width: 200px;
+    }
+    .groomer-popup-fields label {
+      display: block;
+      margin-top: 6px;
+      margin-bottom: 2px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .groomer-popup-fields input, .groomer-popup-fields select {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .groomer-popup-details {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .groomer-popup-details > div {
+      flex: 1;
+      min-width: 180px;
+    }
+    .groomer-popup-details label {
+      display: block;
+      margin-top: 6px;
+      margin-bottom: 2px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .groomer-popup-details input {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .groomer-popup-details .address-link,
+    .groomer-popup-details .phone-link {
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    /* Tab styles */
+    .groomer-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #333;
+    }
+    .groomer-tab {
+      padding: 10px 20px;
+      background: #1e1e1e;
+      color: #888;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px 8px 0 0;
+      transition: all 0.2s;
+    }
+    .groomer-tab:hover {
+      background: #2a2a2a;
+      color: #ccc;
+    }
+    .groomer-tab.active {
+      background: #ffcc00;
+      color: #121212;
+    }
+    .groomer-tab-content {
+      display: none;
+    }
+    .groomer-tab-content.active {
+      display: block;
+    }
+    /* Rework styles */
+    .rework-list {
+      margin: 10px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .rework-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      border: 1px solid #333;
+    }
+    .rework-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #ffcc00;
+    }
+    .rework-item span {
+      flex: 1;
+    }
+    .rework-item.done {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    .add-rework-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .add-rework-row input {
+      flex: 1;
+    }
+    .add-rework-btn {
+      background: #ffcc00;
+      color: #121212;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .add-rework-btn:hover {
+      background: #ffe066;
+    }
+    /* Issue tracking styles */
+    .active-issue-box {
+      background: #2a1a1a;
+      border: 2px solid #ef4444;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .active-issue-box h4 {
+      color: #ef4444;
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+    .issue-updates {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    .issue-update-item {
+      background: #1e1e1e;
+      border-left: 3px solid #ffcc00;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 0 6px 6px 0;
+    }
+    .issue-update-item .update-time {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .issue-update-item .update-text {
+      font-size: 14px;
+    }
+    .add-update-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .add-update-row input {
+      flex: 1;
+    }
+    .done-issue-btn {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .done-issue-btn:hover {
+      background: #16a34a;
+    }
+    .no-issue-msg {
+      text-align: center;
+      color: #888;
+      padding: 20px;
+      font-style: italic;
+    }
+    /* Archive styles */
+    .archive-btn {
+      background: #333;
+      color: #ffcc00;
+      border: 1px solid #ffcc00;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 16px;
+      width: 100%;
+    }
+    .archive-btn:hover {
+      background: #444;
+    }
+    .archive-list {
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .archive-item {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .archive-item:hover {
+      border-color: #ffcc00;
+    }
+    .archive-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .archive-item-date {
+      font-size: 12px;
+      color: #888;
+    }
+    .archive-item-problem {
+      font-size: 14px;
+      color: #f1f1f1;
+    }
+    .archive-item-solution {
+      font-size: 13px;
+      color: #22c55e;
+      margin-top: 4px;
+    }
+    .archive-detail-view {
+      background: #1a1a1a;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+    .archive-detail-view h4 {
+      color: #ffcc00;
+      margin: 0 0 12px 0;
+    }
+    .back-btn {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .back-btn:hover {
+      background: #444;
+    }
+    .software-section label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .software-section input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .section-title {
+      color: #ffcc00;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <span>X</span>elom Fleet Manager
+    <input id="searchBox" class="search" type="text" placeholder="Search…">
+    <button id="filterBtn" class="filter-btn" type="button">Filter</button>
+  </h1>
+  <div id="map"></div>
+  <div class="topbar">
+    <!-- Settings -->
+    <div class="dropdown">
+      <button aria-label="Settings" onclick="toggleMenu('settingsMenu')">&#9881;</button>
+      <div class="dropdown-menu" id="settingsMenu">
+        <button onclick="syncMarkers()">Sync</button>
+        <button onclick="removeAllMarkers()">Remove all</button>
+      </div>
+    </div>
+    <!-- Layers -->
+    <div class="dropdown">
+      <button aria-label="Layers" onclick="toggleMenu('layersMenu')">&#9776;</button>
+      <div class="dropdown-menu" id="layersMenu">
+        <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
+        <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
+        <label><input type="checkbox" id="layerWorker" checked> Workers</label>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <img src="groomer.png" id="drag-groomer" draggable="true" data-type="groomer" title="Snow Groomer" />
+    <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
+    <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
+  </div>
+  <!-- Custom popup (hidden by default) -->
+  <div id="customPopup" class="custom-popup">
+    <button class="close-btn" onclick="closeCustomPopup()">&times;</button>
+    <div id="customPopupContent"></div>
+  </div>
+  <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.appspot.com",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- ICONS ---
+    const icons = {
+      groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      worker: L.icon({ iconUrl: 'van.png',     iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
+    };
+
+    function makeId() {
+      return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // --- Map initialization ---
+    const map = L.map('map').setView([46.5, 11.3], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker registry
+    let markersMap = {}; // id -> marker
+    let allMarkers = []; // for search/filter
+
+    // Store current popup data reference for updates
+    let currentPopupData = null;
+    let currentPopupMarker = null;
+
+    // --- Drag and Drop logic ---
+    let dragType = null;
+    document.querySelectorAll('.toolbar img[draggable="true"]').forEach(img => {
+      img.addEventListener('dragstart', e => {
+        dragType = img.getAttribute('data-type');
+        e.dataTransfer.setData('text/plain', dragType);
+      });
+      img.addEventListener('dragend', e => {
+        dragType = null;
+      });
+    });
+
+    // Prevent default dragover on map container
+    const mapDiv = document.getElementById('map');
+    mapDiv.addEventListener('dragover', function(e) {
+      e.preventDefault();
+    });
+
+    mapDiv.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragType) return;
+      const rect = mapDiv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const latlng = map.containerPointToLatLng([x, y]);
+      addMarker(dragType, latlng, {}, makeId(), true);
+      dragType = null;
+    });
+
+    // --- Custom Popup Logic ---
+    window.closeCustomPopup = function() {
+      document.getElementById('customPopup').style.display = 'none';
+      document.getElementById('customPopupContent').innerHTML = '';
+      currentPopupMarker = null;
+      currentPopupData = null;
+    };
+
+    function formatDateTime(date) {
+      return new Date(date).toLocaleString('en-GB', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function showCustomPopup(marker, type, data) {
+      currentPopupMarker = marker;
+      currentPopupData = data;
+      
+      let formHtml = '';
+      if (type === 'groomer') {
+        // Initialize data structures if not present
+        data.software = data.software || { vcu: '', display: '', battery: '', evcc: '', vfd: '' };
+        data.reworks = data.reworks || [];
+        data.activeIssue = data.activeIssue || null;
+        data.archivedIssues = data.archivedIssues || [];
+        
+        const status = data.status || "Working";
+        const imgSrc = status === "Issue" ? "groomerissues.png" : "groomer.png";
+        
+        formHtml = `
+          <div>
+            <!-- Tabs -->
+            <div class="groomer-tabs">
+              <button class="groomer-tab active" data-tab="general">General</button>
+              <button class="groomer-tab" data-tab="software">Software</button>
+              <button class="groomer-tab" data-tab="issues">Issues</button>
+            </div>
+            
+            <!-- Tab 1: General (existing content) -->
+            <div class="groomer-tab-content active" id="tab-general">
+              <div class="groomer-popup-flex">
+                <div class="groomer-popup-img">
+                  <img id="groomerStatusImg" src="${imgSrc}" alt="Groomer" />
+                </div>
+                <div class="groomer-popup-fields">
+                  <label>Serial Number</label><input id="serial" value="${data.serial||""}">
+                  <label>Size</label>
+                  <select id="size">
+                    <option ${data.size==="280"?"selected":""}>280</option>
+                    <option ${data.size==="320"?"selected":""}>320</option>
+                    <option ${data.size==="250"?"selected":""}>250</option>
+                  </select>
+                  <label>Blade Serial</label><input id="blade" value="${data.blade||""}">
+                  <label>Tiller Serial</label><input id="tiller" value="${data.tiller||""}">
+                  <label>Status</label>
+                  <select id="status">
+                    <option ${status==="Working"?"selected":""}>Working</option>
+                    <option ${status==="Issue"?"selected":""}>Issue</option>
+                  </select>
+                </div>
+              </div>
+              <div class="groomer-popup-details">
+                <div>
+                  <label>Responsible</label>
+                  <input id="responsibleName" placeholder="Name" value="${data.responsibleName||""}">
+                  <input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||""}">
+                  <div id="responsiblePhoneLink" class="phone-link"></div>
+                  <label>Driver</label>
+                  <input id="driverName" placeholder="Name" value="${data.driverName||""}">
+                  <input id="driverPhone" placeholder="Phone" value="${data.driverPhone||""}">
+                  <div id="driverPhoneLink" class="phone-link"></div>
+                  <label>Mechanic</label>
+                  <input id="mechanicName" placeholder="Name" value="${data.mechanicName||""}">
+                  <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
+                  <div id="mechanicPhoneLink" class="phone-link"></div>
+                </div>
+                <div>
+                  <label>Ski Area Name</label>
+                  <input id="skiAreaName" value="${data.skiAreaName||""}">
+                  <label>Address</label>
+                  <input id="skiAreaAddress" value="${data.skiAreaAddress||""}">
+                  <div id="skiAreaAddressLink" class="address-link"></div>
+                  <label>Hotel Name</label>
+                  <input id="hotelName" value="${data.hotelName||""}">
+                  <label>Hotel Address</label>
+                  <input id="hotelAddress" value="${data.hotelAddress||""}">
+                  <div id="hotelAddressLink" class="address-link"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tab 2: Software -->
+            <div class="groomer-tab-content" id="tab-software">
+              <div class="software-section">
+                <label>VCU Software</label>
+                <input id="sw-vcu" value="${data.software.vcu||""}">
+                <label>Display Software</label>
+                <input id="sw-display" value="${data.software.display||""}">
+                <label>Battery Software</label>
+                <input id="sw-battery" value="${data.software.battery||""}">
+                <label>EVCC Software</label>
+                <input id="sw-evcc" value="${data.software.evcc||""}">
+                <label>VFD Software</label>
+                <input id="sw-vfd" value="${data.software.vfd||""}">
+              </div>
+              
+              <div class="section-title">Reworks</div>
+              <div class="rework-list" id="reworkList">
+                ${renderReworkList(data.reworks)}
+              </div>
+              <div class="add-rework-row">
+                <input type="text" id="newReworkInput" placeholder="Enter new rework...">
+                <button class="add-rework-btn" id="addReworkBtn">Add</button>
+              </div>
+            </div>
+            
+            <!-- Tab 3: Issues -->
+            <div class="groomer-tab-content" id="tab-issues">
+              <div id="issueContent">
+                ${renderIssueContent(data)}
+              </div>
+            </div>
+            
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>
+        `;
+      }
+      if (type === 'charger') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Power</label>
+            <select id="power">
+              <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
+              <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
+              <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
+            </select>
+            <label>Serial</label><input id="serial" value="${data.serial||""}">
+            <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
+            <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      if (type === 'worker') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
+            <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
+            <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
+            <label>Day Present</label><input type="date" id="day" value="${data.day||""}">
+            <label>Planned End</label><input type="date" id="end" value="${data.end||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      document.getElementById('customPopupContent').innerHTML = formHtml;
+      document.getElementById('customPopup').style.display = 'block';
+
+      const popupEl = document.getElementById('customPopupContent');
+      
+      // Tab switching for groomer
+      if (type === 'groomer') {
+        const tabs = popupEl.querySelectorAll('.groomer-tab');
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+            popupEl.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active');
+          });
+        });
+        
+        // Rework functionality
+        setupReworkHandlers(popupEl, data, marker);
+        
+        // Issue functionality
+        setupIssueHandlers(popupEl, data, marker);
+      }
+
+      // Add logic for address/phone links and image update for groomer
+      const statusSelect = popupEl.querySelector('#status');
+      const imgEl = popupEl.querySelector('#groomerStatusImg');
+      if (statusSelect && imgEl) {
+        statusSelect.addEventListener('change', () => {
+          imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
+          // If switching to Issue, prompt to create issue
+          if (statusSelect.value === "Issue" && !data.activeIssue) {
+            // Switch to issues tab
+            popupEl.querySelectorAll('.groomer-tab').forEach(t => t.classList.remove('active'));
+            popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');
+            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+            popupEl.querySelector('#tab-issues').classList.add('active');
+          }
+        });
+      }
+      
+      function updateAddressLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (address) => {
+            if (address) {
+              const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
+              linkDiv.innerHTML = `<a href="${url}" target="_blank" style="color:#4af;">Open in Google Maps</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
+      updateAddressLink('hotelAddress', 'hotelAddressLink');
+      
+      function updatePhoneLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (phone) => {
+            const clean = phone.replace(/[^+\d]/g, '');
+            if (clean) {
+              linkDiv.innerHTML = `<a href="tel:${clean}" style="color:#4af;">Call</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
+      updatePhoneLink('driverPhone', 'driverPhoneLink');
+      updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+
+      // Save/Remove logic
+      const saveBtn = popupEl.querySelector('#saveBtn');
+      const removeBtn = popupEl.querySelector('#removeBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+          // Collect general fields
+          const generalInputs = popupEl.querySelectorAll('#tab-general input, #tab-general select');
+          const values = {};
+          generalInputs.forEach(i => {
+            if (i.id) values[i.id] = i.value;
+          });
+          
+          // Collect software fields for groomer
+          if (type === 'groomer') {
+            values.software = {
+              vcu: popupEl.querySelector('#sw-vcu')?.value || '',
+              display: popupEl.querySelector('#sw-display')?.value || '',
+              battery: popupEl.querySelector('#sw-battery')?.value || '',
+              evcc: popupEl.querySelector('#sw-evcc')?.value || '',
+              vfd: popupEl.querySelector('#sw-vfd')?.value || ''
+            };
+            values.reworks = data.reworks || [];
+            values.activeIssue = data.activeIssue || null;
+            values.archivedIssues = data.archivedIssues || [];
+          }
+          
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+          if (marker.options.markerType === 'groomer') {
+            if (values.status === 'Issue') {
+              marker.setIcon(icons.groomerissues);
+            } else {
+              marker.setIcon(icons.groomer);
+            }
+          }
+          alert('Saved!');
+          closeCustomPopup();
+        });
+      }
+      if (removeBtn) {
+        removeBtn.addEventListener('click', async () => {
+          await removeMarker(marker.options.markerId);
+          map.removeLayer(marker);
+          delete markersMap[marker.options.markerId];
+          closeCustomPopup();
+        });
+      }
+    }
+
+    // Render rework list HTML
+    function renderReworkList(reworks) {
+      if (!reworks || reworks.length === 0) {
+        return '<div class="no-issue-msg">No reworks pending</div>';
+      }
+      return reworks.map((rework, index) => `
+        <div class="rework-item" data-index="${index}">
+          <input type="checkbox" class="rework-checkbox" data-index="${index}">
+          <span>${escapeHtml(rework)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Setup rework handlers
+    function setupReworkHandlers(popupEl, data, marker) {
+      const addBtn = popupEl.querySelector('#addReworkBtn');
+      const input = popupEl.querySelector('#newReworkInput');
+      const reworkList = popupEl.querySelector('#reworkList');
+      
+      if (addBtn && input) {
+        addBtn.addEventListener('click', async () => {
+          const text = input.value.trim();
+          if (!text) return;
+          
+          data.reworks = data.reworks || [];
+          data.reworks.push(text);
+          input.value = '';
+          
+          reworkList.innerHTML = renderReworkList(data.reworks);
+          attachReworkCheckboxListeners(popupEl, data, marker);
+        });
+        
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            addBtn.click();
+          }
+        });
+      }
+      
+      attachReworkCheckboxListeners(popupEl, data, marker);
+    }
+
+    function attachReworkCheckboxListeners(popupEl, data, marker) {
+      const checkboxes = popupEl.querySelectorAll('.rework-checkbox');
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', async () => {
+          const index = parseInt(cb.dataset.index);
+          // Remove the rework when checked
+          data.reworks.splice(index, 1);
+          
+          const reworkList = popupEl.querySelector('#reworkList');
+          reworkList.innerHTML = renderReworkList(data.reworks);
+          attachReworkCheckboxListeners(popupEl, data, marker);
+        });
+      });
+    }
+
+    // Render issue content
+    function renderIssueContent(data) {
+      const hasActiveIssue = data.activeIssue && data.activeIssue.problem;
+      
+      if (hasActiveIssue) {
+        // Show active issue
+        return `
+          <div class="active-issue-box">
+            <h4>⚠️ Active Issue</h4>
+            <div style="margin-bottom: 10px;">
+              <strong>Problem:</strong> ${escapeHtml(data.activeIssue.problem)}
+            </div>
+            <div style="margin-bottom: 6px; font-size: 12px; color: #888;">
+              Started: ${formatDateTime(data.activeIssue.createdAt)}
+            </div>
+            ${data.activeIssue.responsible ? `<div style="margin-bottom: 6px;"><strong>Responsible:</strong> ${escapeHtml(data.activeIssue.responsible)}</div>` : ''}
+            
+            <div class="section-title">Updates</div>
+            <div class="issue-updates" id="issueUpdates">
+              ${renderIssueUpdates(data.activeIssue.updates || [])}
+            </div>
+            
+            <div class="add-update-row">
+              <input type="text" id="newUpdateInput" placeholder="Add update (e.g., R&D working on solution...)">
+              <button class="add-rework-btn" id="addUpdateBtn">Add</button>
+            </div>
+            
+            <div style="margin-top: 16px;">
+              <label style="color: #ffcc00; font-size: 13px; font-weight: 600;">Solution / What was the problem:</label>
+              <textarea id="issueSolution" rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px; resize: vertical;">${escapeHtml(data.activeIssue.solution || '')}</textarea>
+            </div>
+            
+            <button class="done-issue-btn" id="doneIssueBtn">✓ Mark as Done & Archive</button>
+          </div>
+          
+          <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
+          <div id="archiveContainer"></div>
+        `;
+      } else {
+        // No active issue - show form to create one
+        const statusIsIssue = data.status === 'Issue';
+        return `
+          ${statusIsIssue ? `
+            <div class="active-issue-box" style="border-color: #ffcc00; background: #1a1a0a;">
+              <h4 style="color: #ffcc00;">Create New Issue Report</h4>
+              <label style="color: #ffcc00; font-size: 13px; font-weight: 600;">Problem Description:</label>
+              <textarea id="newIssueProblem" rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px; resize: vertical;" placeholder="Describe the problem..."></textarea>
+              
+              <label style="color: #ffcc00; font-size: 13px; font-weight: 600; margin-top: 10px; display: block;">Responsible Person:</label>
+              <input type="text" id="newIssueResponsible" placeholder="Who is responsible?" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px;">
+              
+              <button class="add-rework-btn" style="width: 100%; margin-top: 12px;" id="createIssueBtn">Create Issue</button>
+            </div>
+          ` : `
+            <div class="no-issue-msg">
+              <p>No active issues</p>
+              <p style="font-size: 13px; margin-top: 8px;">Set status to "Issue" to report a problem</p>
+            </div>
+          `}
+          
+          <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
+          <div id="archiveContainer"></div>
+        `;
+      }
+    }
+
+    function renderIssueUpdates(updates) {
+      if (!updates || updates.length === 0) {
+        return '<div class="no-issue-msg" style="padding: 10px;">No updates yet</div>';
+      }
+      return updates.map(update => `
+        <div class="issue-update-item">
+          <div class="update-time">${formatDateTime(update.timestamp)}</div>
+          <div class="update-text">${escapeHtml(update.text)}</div>
+        </div>
+      `).join('');
+    }
+
+    function setupIssueHandlers(popupEl, data, marker) {
+      // Create new issue
+      const createIssueBtn = popupEl.querySelector('#createIssueBtn');
+      if (createIssueBtn) {
+        createIssueBtn.addEventListener('click', () => {
+          const problemInput = popupEl.querySelector('#newIssueProblem');
+          const responsibleInput = popupEl.querySelector('#newIssueResponsible');
+          const problem = problemInput?.value.trim();
+          const responsible = responsibleInput?.value.trim();
+          
+          if (!problem) {
+            alert('Please describe the problem');
+            return;
+          }
+          
+          data.activeIssue = {
+            problem: problem,
+            responsible: responsible,
+            createdAt: new Date().toISOString(),
+            updates: [],
+            solution: ''
+          };
+          
+          // Re-render issue content
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupIssueHandlers(popupEl, data, marker);
+        });
+      }
+      
+      // Add update to active issue
+      const addUpdateBtn = popupEl.querySelector('#addUpdateBtn');
+      if (addUpdateBtn) {
+        addUpdateBtn.addEventListener('click', () => {
+          const input = popupEl.querySelector('#newUpdateInput');
+          const text = input?.value.trim();
+          if (!text) return;
+          
+          data.activeIssue.updates = data.activeIssue.updates || [];
+          data.activeIssue.updates.push({
+            text: text,
+            timestamp: new Date().toISOString()
+          });
+          
+          input.value = '';
+          
+          const updatesContainer = popupEl.querySelector('#issueUpdates');
+          updatesContainer.innerHTML = renderIssueUpdates(data.activeIssue.updates);
+        });
+        
+        const input = popupEl.querySelector('#newUpdateInput');
+        if (input) {
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              addUpdateBtn.click();
+            }
+          });
+        }
+      }
+      
+      // Done issue - archive and reset
+      const doneIssueBtn = popupEl.querySelector('#doneIssueBtn');
+      if (doneIssueBtn) {
+        doneIssueBtn.addEventListener('click', async () => {
+          const solutionInput = popupEl.querySelector('#issueSolution');
+          const solution = solutionInput?.value.trim();
+          
+          if (!solution) {
+            alert('Please enter the solution / what the problem was before closing');
+            return;
+          }
+          
+          // Archive the issue
+          data.activeIssue.solution = solution;
+          data.activeIssue.resolvedAt = new Date().toISOString();
+          
+          data.archivedIssues = data.archivedIssues || [];
+          data.archivedIssues.unshift(data.activeIssue); // Add to beginning
+          
+          // Clear active issue
+          data.activeIssue = null;
+          
+          // Set status back to Working
+          data.status = 'Working';
+          const statusSelect = popupEl.querySelector('#status');
+          if (statusSelect) statusSelect.value = 'Working';
+          const imgEl = popupEl.querySelector('#groomerStatusImg');
+          if (imgEl) imgEl.src = 'groomer.png';
+          
+          // Update marker icon
+          marker.setIcon(icons.groomer);
+          
+          // Re-render issue content
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupIssueHandlers(popupEl, data, marker);
+          
+          alert('Issue resolved and archived!');
+        });
+      }
+      
+      // Show archive
+      const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
+      if (showArchiveBtn) {
+        showArchiveBtn.addEventListener('click', () => {
+          const container = popupEl.querySelector('#archiveContainer');
+          if (container.innerHTML) {
+            container.innerHTML = '';
+            showArchiveBtn.textContent = `📁 View Archive (${data.archivedIssues?.length || 0})`;
+          } else {
+            container.innerHTML = renderArchiveList(data.archivedIssues || []);
+            showArchiveBtn.textContent = '📁 Hide Archive';
+            setupArchiveItemHandlers(popupEl, data);
+          }
+        });
+      }
+    }
+
+    function renderArchiveList(archivedIssues) {
+      if (!archivedIssues || archivedIssues.length === 0) {
+        return '<div class="no-issue-msg" style="margin-top: 10px;">No archived issues</div>';
+      }
+      return `
+        <div class="archive-list">
+          ${archivedIssues.map((issue, index) => `
+            <div class="archive-item" data-index="${index}">
+              <div class="archive-item-header">
+                <span style="color: #ef4444;">Issue #${archivedIssues.length - index}</span>
+                <span class="archive-item-date">${formatDateTime(issue.resolvedAt || issue.createdAt)}</span>
+              </div>
+              <div class="archive-item-problem">${escapeHtml(issue.problem)}</div>
+              <div class="archive-item-solution">✓ ${escapeHtml(issue.solution || 'No solution recorded')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function setupArchiveItemHandlers(popupEl, data) {
+      const items = popupEl.querySelectorAll('.archive-item');
+      items.forEach(item => {
+        item.addEventListener('click', () => {
+          const index = parseInt(item.dataset.index);
+          const issue = data.archivedIssues[index];
+          
+          const container = popupEl.querySelector('#archiveContainer');
+          container.innerHTML = `
+            <div class="archive-detail-view">
+              <button class="back-btn" id="backToArchiveList">← Back to list</button>
+              <h4>Issue Details</h4>
+              <div style="margin-bottom: 12px;">
+                <strong>Problem:</strong><br>
+                ${escapeHtml(issue.problem)}
+              </div>
+              ${issue.responsible ? `<div style="margin-bottom: 8px;"><strong>Responsible:</strong> ${escapeHtml(issue.responsible)}</div>` : ''}
+              <div style="margin-bottom: 8px; font-size: 12px; color: #888;">
+                Created: ${formatDateTime(issue.createdAt)}<br>
+                Resolved: ${formatDateTime(issue.resolvedAt)}
+              </div>
+              
+              ${issue.updates && issue.updates.length > 0 ? `
+                <div class="section-title">Timeline</div>
+                <div class="issue-updates">
+                  ${renderIssueUpdates(issue.updates)}
+                </div>
+              ` : ''}
+              
+              <div style="margin-top: 12px; padding: 12px; background: #1a2a1a; border-radius: 8px; border-left: 3px solid #22c55e;">
+                <strong style="color: #22c55e;">Solution:</strong><br>
+                ${escapeHtml(issue.solution)}
+              </div>
+            </div>
+          `;
+          
+          const backBtn = popupEl.querySelector('#backToArchiveList');
+          backBtn.addEventListener('click', () => {
+            container.innerHTML = renderArchiveList(data.archivedIssues);
+            setupArchiveItemHandlers(popupEl, data);
+          });
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- ADD MARKER ---
+    function addMarker(type, latlng, data={}, id, saveToDb=false) {
+      let icon = icons[type];
+      if (type === 'groomer' && data.status === 'Issue') {
+        icon = icons.groomerissues;
+      }
+      if (markersMap[id]) return; // Prevent duplicate
+      const marker = L.marker(latlng, { icon: icon, draggable: true });
+      marker.addTo(map);
+      marker.options.markerId = id || makeId();
+      marker.options.markerType = type;
+      markersMap[marker.options.markerId] = marker;
+
+      marker.on('click', () => {
+        showCustomPopup(marker, type, data);
+      });
+
+      // Save initial marker (if not already present)
+      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
+
+      // Update saved position on drag
+      marker.on('dragend', async ev => {
+        const pos = ev.target.getLatLng();
+        await updateMarkerPosition(marker.options.markerId, pos);
+      });
+    }
+
+    // --- Firestore marker functions ---
+    async function saveMarker(id, type, latlng, data) {
+      await setDoc(doc(db, "markers", id), {
+        id, type, lat: latlng.lat, lng: latlng.lng, data
+      });
+    }
+
+    async function updateMarkerPosition(id, latlng) {
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
+        id,
+        lat: latlng.lat,
+        lng: latlng.lng
+      }, { merge: true });
+    }
+
+    async function removeMarker(id) {
+      await deleteDoc(doc(db, "markers", id));
+    }
+
+    // --- Real-time sync with Firestore ---
+    function refreshMarkersFromFirestore() {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
+        // Remove all current markers
+        Object.values(markersMap).forEach(m => map.removeLayer(m));
+        markersMap = {};
+        allMarkers = [];
+        snapshot.forEach(docSnap => {
+          const m = docSnap.data();
+          allMarkers.push(m);
+        });
+        // Show all markers by default (no filtering here)
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
+        applyFilters();
+      });
+    }
+    refreshMarkersFromFirestore();
+
+    // --- Settings menu actions ---
+    window.syncMarkers = function() {
+      alert("Synced!");
+    };
+    window.removeAllMarkers = function() {
+      const pw = prompt("Enter password to remove all machines:");
+      if (pw !== "1111") {
+        alert("Incorrect password.");
+        return;
+      }
+      allMarkers.forEach(m => removeMarker(m.id));
+      alert("All machines removed.");
+    };
+
+    // --- Dropdown toggle ---
+    window.toggleMenu = function(id) {
+      document.querySelectorAll('.dropdown-menu').forEach(m => {
+        if (m.id === id) m.classList.toggle('show');
+        else m.classList.remove('show');
+      });
+    };
+    document.addEventListener('click', (e) => {
+      const hitDropdown = e.target.closest('.dropdown');
+      const hitButton = e.target.closest('.dropdown > button');
+      if (!hitDropdown && !hitButton) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // --- Layers filtering ---
+    function applyFilters() {
+      const showG = document.getElementById('layerGroomer').checked;
+      const showC = document.getElementById('layerCharger').checked;
+      const showW = document.getElementById('layerWorker').checked;
+      Object.values(markersMap).forEach(m => {
+        const type = m.options.markerType;
+        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || (type==='worker' && !showW)) {
+          map.removeLayer(m);
+        } else {
+          map.addLayer(m);
+        }
+      });
+    }
+    document.getElementById('layerGroomer').addEventListener('change', applyFilters);
+    document.getElementById('layerCharger').addEventListener('change', applyFilters);
+    document.getElementById('layerWorker').addEventListener('change', applyFilters);
+
+    // --- Temporary marker for geocode search ---
+    let tempMarker = null;
+
+    // --- Geocode search and zoom (no filtering) ---
+    const searchBox = document.getElementById('searchBox');
+    searchBox.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const query = searchBox.value.trim();
+        if (!query) return;
+        // Call Nominatim API
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+        const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+        const results = await resp.json();
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          map.setView([lat, lon], 16);
+
+          // Remove previous temp marker
+          if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+          // Add temporary marker
+          tempMarker = L.marker([lat, lon], {
+            icon: L.icon({
+              iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+              shadowSize: [41, 41]
+            })
+          }).addTo(map);
+        } else {
+          alert('Place not found!');
+        }
+      }
+    });
+
+    // Remove temp marker if search bar input changes
+    searchBox.addEventListener('input', () => {
+      if (tempMarker) {
+        map.removeLayer(tempMarker);
+        tempMarker = null;
+      }
+    });
+
+    // --- Filter button for marker info search (toggle) ---
+    const filterBtn = document.getElementById('filterBtn');
+    let filterActive = false;
+    filterBtn.addEventListener('click', () => {
+      filterActive = !filterActive;
+      filterBtn.classList.toggle('active', filterActive);
+
+      // Remove all markers from the map and from markersMap
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      markersMap = {};
+
+      if (!filterActive) {
+        // Show all markers
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+
+      // Otherwise, filter and show only matches
+      const q = searchBox.value.trim().toLowerCase();
+      if (!q) {
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+      const matches = allMarkers.filter(m => {
+        if (String(m.id).toLowerCase().includes(q)) return true;
+        if (String(m.type).toLowerCase().includes(q)) return true;
+        if (m.data) {
+          for (const v of Object.values(m.data)) {
+            if (String(v).toLowerCase().includes(q)) return true;
+          }
+        }
+        return false;
+      });
+      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+    });
+
+    // --- Service Worker registration for PWA ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+          // Registration successful
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
