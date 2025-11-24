@@ -12,208 +12,1162 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
-    *{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
-    html,body{height:100%;overflow:hidden}
-    body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;margin:0;touch-action:manipulation}
-    h1{margin:0;padding:8px 10px;font-weight:500;display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:18px;position:relative;z-index:1001;background:#000}
-    h1 span:first-child{color:#ffcc00}
-    #map{height:calc(100vh - 52px);height:calc(100dvh - 52px);width:100%}
-    .search{padding:8px 12px;border-radius:6px;border:2px solid #ffcc00;background:#121212;color:#fff;font-size:16px;flex:1;min-width:120px;max-width:200px}
-    .filter-btn{padding:8px 14px;border-radius:6px;border:2px solid #ffcc00;background:#222;color:#ffcc00;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,color .2s;white-space:nowrap}
-    .filter-btn.active{background:#ffcc00;color:#222}
-    .filter-btn:hover,.filter-btn:active{background:#ffe066;color:#222}
-    .topbar{position:absolute;top:60px;right:10px;display:flex;gap:8px;z-index:1000}
-    .dropdown{position:relative}
-    .dropdown>button{background:#121212;border:2px solid #ffcc00;border-radius:8px;color:#fff;padding:8px;cursor:pointer;font-size:20px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
-    .dropdown-menu{position:absolute;right:0;top:48px;background:#1e1e1e;border:1px solid #ffcc00;border-radius:8px;display:none;flex-direction:column;min-width:180px;z-index:1001;padding:0;box-shadow:0 4px 12px rgba(0,0,0,.5)}
-    .dropdown-menu.show{display:flex}
-    .dropdown-menu label,.dropdown-menu button{padding:14px 16px;border:none;background:none;color:#fff;text-align:left;cursor:pointer;font-size:16px;white-space:nowrap;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px}
-    .dropdown-menu label:hover,.dropdown-menu button:hover,.dropdown-menu label:active,.dropdown-menu button:active{background:#333}
-    .dropdown-menu input[type="checkbox"]{width:20px;height:20px;accent-color:#ffcc00}
-    .toolbar{position:absolute;top:120px;right:10px;display:flex;flex-direction:column;gap:8px;z-index:1000}
-    .toolbar img{width:52px;height:52px;background:#121212;border:2px solid #ffcc00;border-radius:10px;cursor:grab;object-fit:contain;user-select:none;touch-action:none;-webkit-user-select:none}
-    .toolbar img:active{cursor:grabbing;transform:scale(1.1)}
-    .custom-popup{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#121212;color:#f1f1f1;z-index:2000;overflow-y:auto;-webkit-overflow-scrolling:touch}
-    @media(min-width:600px){.custom-popup{top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);border:2px solid #ffcc00;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.8);min-width:420px;max-width:700px;max-height:90vh;width:auto}}
-    .popup-inner{padding:16px;padding-top:60px;padding-bottom:100px}
-    @media(min-width:600px){.popup-inner{padding:24px}}
-    .custom-popup .close-btn{position:fixed;top:12px;right:16px;font-size:32px;color:#ffcc00;background:#121212;border:2px solid #ffcc00;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2001;line-height:1;padding:0}
-    @media(min-width:600px){.custom-popup .close-btn{position:absolute;background:none;border:none;width:auto;height:auto}}
-    .popup-form{background:#121212;color:#f1f1f1;font-size:15px;padding:0;border-radius:12px;box-sizing:border-box;border:none}
-    .popup-form label{display:block;margin-top:12px;margin-bottom:6px;color:#ffcc00;font-size:13px;font-weight:600}
-    .popup-form input,.popup-form select,.popup-form textarea{width:100%;max-width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;margin-bottom:8px;transition:border-color .2s;-webkit-appearance:none;appearance:none}
-    .popup-form input:focus,.popup-form select:focus,.popup-form textarea:focus{outline:none;border-color:#ffcc00;box-shadow:0 0 4px #ffcc00}
-    .popup-form select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
-    .popup-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;position:fixed;bottom:0;left:0;right:0;padding:16px;background:#121212;border-top:1px solid #333;z-index:2002}
-    @media(min-width:600px){.popup-actions{position:static;padding:0;background:none;border-top:none}}
-    .btn{padding:14px;border-radius:8px;border:none;font-weight:600;cursor:pointer;font-size:16px;transition:background .2s;touch-action:manipulation}
-    .save-btn{background:#ffcc00;color:#000}
-    .save-btn:hover,.save-btn:active{background:#ffe066}
-    .remove-btn{background:#ef4444;color:#fff}
-    .remove-btn:hover,.remove-btn:active{background:#ff6666}
-    .groomer-popup-flex{display:flex;flex-direction:column;align-items:center;gap:16px}
-    @media(min-width:500px){.groomer-popup-flex{flex-direction:row;align-items:flex-start}}
-    .groomer-popup-img img{width:80px;height:80px;object-fit:contain;border-radius:8px;border:2px solid #ffcc00;background:#222;display:block}
-    .groomer-popup-fields{flex:1;width:100%}
-    .groomer-popup-fields label{display:block;margin-top:8px;margin-bottom:4px;color:#ffcc00;font-size:13px;font-weight:600}
-    .groomer-popup-fields input,.groomer-popup-fields select{width:100%;max-width:100%;box-sizing:border-box;padding:12px;border-radius:6px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;margin-bottom:8px;-webkit-appearance:none;appearance:none}
-    .groomer-popup-fields select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
-    .groomer-popup-details{display:flex;flex-direction:column;gap:0;margin-top:16px}
-    @media(min-width:500px){.groomer-popup-details{flex-direction:row;gap:16px}}
-    .groomer-popup-details>div{flex:1}
-    .groomer-popup-details label{display:block;margin-top:10px;margin-bottom:4px;color:#ffcc00;font-size:13px;font-weight:600}
-    .groomer-popup-details input{width:100%;max-width:100%;box-sizing:border-box;padding:12px;border-radius:6px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;margin-bottom:8px}
-    .groomer-popup-details .address-link,.groomer-popup-details .phone-link{margin-bottom:8px;font-size:14px}
-    .groomer-popup-details .address-link a,.groomer-popup-details .phone-link a{display:inline-block;padding:8px 12px;background:#1e1e1e;border-radius:6px;text-decoration:none}
-    .groomer-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #333;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .groomer-tab{padding:12px 16px;background:#1e1e1e;color:#888;border:none;cursor:pointer;font-size:14px;font-weight:600;border-radius:8px 8px 0 0;transition:all .2s;white-space:nowrap;flex:1;text-align:center;touch-action:manipulation}
-    .groomer-tab:hover,.groomer-tab:active{background:#2a2a2a;color:#ccc}
-    .groomer-tab.active{background:#ffcc00;color:#121212}
-    .groomer-tab-content{display:none}
-    .groomer-tab-content.active{display:block}
-    .rework-list{margin:10px 0;max-height:250px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-    .rework-item{display:flex;align-items:center;gap:12px;padding:12px;background:#1e1e1e;border-radius:8px;margin-bottom:8px;border:1px solid #333}
-    .rework-item input[type="checkbox"]{width:24px;height:24px;cursor:pointer;accent-color:#ffcc00;flex-shrink:0}
-    .rework-item span{flex:1;font-size:15px}
-    .add-rework-row{display:flex;gap:8px;margin-top:12px}
-    .add-rework-row input{flex:1;font-size:16px}
-    .add-rework-btn{background:#ffcc00;color:#121212;border:none;padding:12px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:15px;touch-action:manipulation;white-space:nowrap}
-    .add-rework-btn:hover,.add-rework-btn:active{background:#ffe066}
-    .active-issue-box{background:#2a1a1a;border:2px solid #ef4444;border-radius:8px;padding:16px;margin-bottom:16px}
-    .active-issue-box h4{color:#ef4444;margin:0 0 12px 0;font-size:16px}
-    .issue-updates{max-height:200px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:10px 0}
-    .issue-update-item{background:#1e1e1e;border-left:3px solid #ffcc00;padding:10px 12px;margin-bottom:8px;border-radius:0 6px 6px 0}
-    .issue-update-item .update-time{font-size:12px;color:#888;margin-bottom:4px}
-    .issue-update-item .update-text{font-size:14px;line-height:1.4}
-    .add-update-row{display:flex;gap:8px;margin-top:12px}
-    .add-update-row input{flex:1;font-size:16px}
-    .done-issue-btn{background:#22c55e;color:#fff;border:none;padding:14px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:16px;margin-top:12px;width:100%;touch-action:manipulation}
-    .done-issue-btn:hover,.done-issue-btn:active{background:#16a34a}
-    .no-issue-msg{text-align:center;color:#888;padding:24px;font-style:italic}
-    .archive-btn{background:#333;color:#ffcc00;border:1px solid #ffcc00;padding:14px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;margin-top:16px;width:100%;touch-action:manipulation}
-    .archive-btn:hover,.archive-btn:active{background:#444}
-    .archive-list{margin-top:16px;max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-    .archive-item{background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .2s;touch-action:manipulation}
-    .archive-item:hover,.archive-item:active{border-color:#ffcc00}
-    .archive-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:4px}
-    .archive-item-date{font-size:12px;color:#888}
-    .archive-item-problem{font-size:14px;color:#f1f1f1;line-height:1.4}
-    .archive-item-solution{font-size:13px;color:#22c55e;margin-top:6px}
-    .archive-detail-view{background:#1a1a1a;border:1px solid #ffcc00;border-radius:8px;padding:16px;margin-top:10px}
-    .archive-detail-view h4{color:#ffcc00;margin:0 0 12px 0}
-    .back-btn{background:#333;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;margin-bottom:12px;font-size:15px;touch-action:manipulation}
-    .back-btn:hover,.back-btn:active{background:#444}
-    .software-section label{display:block;margin-top:12px;margin-bottom:6px;color:#ffcc00;font-size:13px;font-weight:600}
-    .software-section input{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;margin-bottom:8px}
-    .section-title{color:#ffcc00;font-size:14px;font-weight:600;margin-top:24px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #333}
-    ::-webkit-scrollbar{width:6px;height:6px}
-    ::-webkit-scrollbar-track{background:#1e1e1e;border-radius:3px}
-    ::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-    ::-webkit-scrollbar-thumb:hover{background:#555}
-    @supports(padding-top:env(safe-area-inset-top)){
-      h1{padding-top:calc(8px + env(safe-area-inset-top))}
-      .custom-popup .close-btn{top:calc(12px + env(safe-area-inset-top))}
-      .popup-inner{padding-top:calc(60px + env(safe-area-inset-top));padding-bottom:calc(100px + env(safe-area-inset-bottom))}
-      .popup-actions{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
-      @media(min-width:600px){h1{padding-top:8px}.popup-inner{padding-top:24px;padding-bottom:24px}}
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
-    .loading{opacity:.7;pointer-events:none}
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body { 
+      background: black; 
+      color: white; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+      margin: 0;
+      touch-action: manipulation;
+    }
+    
+    h1 { 
+      margin: 0;
+      padding: 8px 10px;
+      font-weight: 500; 
+      display: flex; 
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 18px;
+      position: relative;
+      z-index: 1001;
+      background: black;
+    }
+    
+    h1 span:first-child { color: #ffcc00; }
+    
+    #map { 
+      height: calc(100vh - 52px);
+      height: calc(100dvh - 52px); /* Dynamic viewport height for mobile */
+      width: 100%;
+    }
+    
+    .search {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #121212;
+      color: #fff;
+      font-size: 16px;
+      flex: 1;
+      min-width: 120px;
+      max-width: 200px;
+    }
+    
+    .filter-btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      color: #ffcc00;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    
+    .filter-btn.active {
+      background: #ffcc00;
+      color: #222;
+    }
+    
+    .filter-btn:hover, .filter-btn:active {
+      background: #ffe066;
+      color: #222;
+    }
+    
+    .topbar {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 1000;
+    }
+    
+    .dropdown {
+      position: relative;
+    }
+    
+    .dropdown > button {
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      color: white;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 20px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+    
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 48px;
+      background: #1e1e1e;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      min-width: 180px;
+      z-index: 1001;
+      box-sizing: border-box;
+      padding: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    
+    .dropdown-menu.show { display: flex; }
+    
+    .dropdown-menu label, .dropdown-menu button {
+      padding: 14px 16px;
+      border: none;
+      background: none;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+      font-size: 16px;
+      white-space: nowrap;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .dropdown-menu label:hover, .dropdown-menu button:hover,
+    .dropdown-menu label:active, .dropdown-menu button:active { 
+      background: #333; 
+    }
+    
+    .dropdown-menu input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #ffcc00;
+    }
+    
+    .toolbar {
+      position: absolute;
+      top: 120px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+    }
+    
+    .toolbar img {
+      width: 52px; 
+      height: 52px;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 10px;
+      cursor: grab;
+      object-fit: contain;
+      user-select: none;
+      touch-action: none;
+    }
+    
+    .toolbar img:active {
+      cursor: grabbing;
+      transform: scale(1.1);
+    }
+    
+    /* Custom Popup - Mobile Optimized */
+    .custom-popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #121212;
+      color: #f1f1f1;
+      z-index: 2000;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    @media (min-width: 600px) {
+      .custom-popup {
+        top: 50%;
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%);
+        border: 2px solid #ffcc00;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        min-width: 420px;
+        max-width: 700px;
+        max-height: 90vh;
+        width: auto;
+      }
+    }
+    
+    .popup-inner {
+      padding: 16px;
+      padding-top: 60px;
+      padding-bottom: 100px;
+    }
+    
+    @media (min-width: 600px) {
+      .popup-inner {
+        padding: 24px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+      }
+    }
+    
+    .custom-popup .close-btn {
+      position: fixed;
+      top: 12px;
+      right: 16px;
+      font-size: 32px;
+      color: #ffcc00;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 2001;
+      line-height: 1;
+      padding: 0;
+    }
+    
+    @media (min-width: 600px) {
+      .custom-popup .close-btn {
+        position: absolute;
+        background: none;
+        border: none;
+        width: auto;
+        height: auto;
+      }
+    }
+    
+    .popup-form {
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      padding: 0;
+      border-radius: 12px;
+      box-sizing: border-box;
+      border: none;
+    }
+    
+    .popup-form label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .popup-form input, .popup-form select, .popup-form textarea {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 16px; /* Prevents zoom on iOS */
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    .popup-form input:focus, .popup-form select:focus, .popup-form textarea:focus {
+      outline: none;
+      border-color: #ffcc00;
+      box-shadow: 0 0 4px #ffcc00;
+    }
+    
+    .popup-form select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
+    .popup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: #121212;
+      border-top: 1px solid #333;
+      z-index: 2002;
+    }
+    
+    @media (min-width: 600px) {
+      .popup-actions {
+        position: static;
+        padding: 0;
+        background: none;
+        border-top: none;
+      }
+    }
+    
+    .btn {
+      padding: 14px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s;
+      touch-action: manipulation;
+    }
+    
+    .save-btn { background: #ffcc00; color: black; }
+    .save-btn:hover, .save-btn:active { background: #ffe066; }
+    .remove-btn { background: #ef4444; color: white; }
+    .remove-btn:hover, .remove-btn:active { background: #ff6666; }
+    
+    /* Groomer popup custom styles */
+    .groomer-popup-flex {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    @media (min-width: 500px) {
+      .groomer-popup-flex {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+    }
+    
+    .groomer-popup-img img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      display: block;
+    }
+    
+    .groomer-popup-fields {
+      flex: 1;
+      width: 100%;
+    }
+    
+    .groomer-popup-fields label {
+      display: block;
+      margin-top: 8px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .groomer-popup-fields input, .groomer-popup-fields select {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 16px;
+      margin-bottom: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    .groomer-popup-fields select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
+    .groomer-popup-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 16px;
+    }
+    
+    @media (min-width: 500px) {
+      .groomer-popup-details {
+        flex-direction: row;
+        gap: 16px;
+      }
+    }
+    
+    .groomer-popup-details > div {
+      flex: 1;
+    }
+    
+    .groomer-popup-details label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .groomer-popup-details input {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .groomer-popup-details .address-link,
+    .groomer-popup-details .phone-link {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .groomer-popup-details .address-link a,
+    .groomer-popup-details .phone-link a {
+      display: inline-block;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    
+    /* Tab styles - Mobile Optimized */
+    .groomer-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #333;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .groomer-tab {
+      padding: 12px 16px;
+      background: #1e1e1e;
+      color: #888;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px 8px 0 0;
+      transition: all 0.2s;
+      white-space: nowrap;
+      flex: 1;
+      text-align: center;
+      touch-action: manipulation;
+    }
+    
+    .groomer-tab:hover, .groomer-tab:active {
+      background: #2a2a2a;
+      color: #ccc;
+    }
+    
+    .groomer-tab.active {
+      background: #ffcc00;
+      color: #121212;
+    }
+    
+    .groomer-tab-content {
+      display: none;
+    }
+    
+    .groomer-tab-content.active {
+      display: block;
+    }
+    
+    /* Rework styles */
+    .rework-list {
+      margin: 10px 0;
+      max-height: 250px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .rework-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #1e1e1e;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #333;
+    }
+    
+    .rework-item input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      accent-color: #ffcc00;
+      flex-shrink: 0;
+    }
+    
+    .rework-item span {
+      flex: 1;
+      font-size: 15px;
+    }
+    
+    .rework-item.done {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    
+    .add-rework-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .add-rework-row input {
+      flex: 1;
+      font-size: 16px;
+    }
+    
+    .add-rework-btn {
+      background: #ffcc00;
+      color: #121212;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+    
+    .add-rework-btn:hover, .add-rework-btn:active {
+      background: #ffe066;
+    }
+    
+    /* Issue tracking styles */
+    .active-issue-box {
+      background: #2a1a1a;
+      border: 2px solid #ef4444;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .active-issue-box h4 {
+      color: #ef4444;
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+    
+    .issue-updates {
+      max-height: 200px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 10px 0;
+    }
+    
+    .issue-update-item {
+      background: #1e1e1e;
+      border-left: 3px solid #ffcc00;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border-radius: 0 6px 6px 0;
+    }
+    
+    .issue-update-item .update-time {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    
+    .issue-update-item .update-text {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .add-update-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .add-update-row input {
+      flex: 1;
+      font-size: 16px;
+    }
+    
+    .done-issue-btn {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      margin-top: 12px;
+      width: 100%;
+      touch-action: manipulation;
+    }
+    
+    .done-issue-btn:hover, .done-issue-btn:active {
+      background: #16a34a;
+    }
+    
+    .no-issue-msg {
+      text-align: center;
+      color: #888;
+      padding: 24px;
+      font-style: italic;
+    }
+    
+    /* Archive styles */
+    .archive-btn {
+      background: #333;
+      color: #ffcc00;
+      border: 1px solid #ffcc00;
+      padding: 14px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      margin-top: 16px;
+      width: 100%;
+      touch-action: manipulation;
+    }
+    
+    .archive-btn:hover, .archive-btn:active {
+      background: #444;
+    }
+    
+    .archive-list {
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .archive-item {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      touch-action: manipulation;
+    }
+    
+    .archive-item:hover, .archive-item:active {
+      border-color: #ffcc00;
+    }
+    
+    .archive-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    
+    .archive-item-date {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .archive-item-problem {
+      font-size: 14px;
+      color: #f1f1f1;
+      line-height: 1.4;
+    }
+    
+    .archive-item-solution {
+      font-size: 13px;
+      color: #22c55e;
+      margin-top: 6px;
+    }
+    
+    .archive-detail-view {
+      background: #1a1a1a;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+    
+    .archive-detail-view h4 {
+      color: #ffcc00;
+      margin: 0 0 12px 0;
+    }
+    
+    .back-btn {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 12px;
+      font-size: 15px;
+      touch-action: manipulation;
+    }
+    
+    .back-btn:hover, .back-btn:active {
+      background: #444;
+    }
+    
+    .software-section label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .software-section input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .section-title {
+      color: #ffcc00;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+    }
+    
+    /* Touch-friendly scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    /* Safe area insets for notched phones */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      h1 {
+        padding-top: calc(8px + env(safe-area-inset-top));
+      }
+      
+      .custom-popup .close-btn {
+        top: calc(12px + env(safe-area-inset-top));
+      }
+      
+      .popup-inner {
+        padding-top: calc(60px + env(safe-area-inset-top));
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+      }
+      
+      .popup-actions {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+      
+      @media (min-width: 600px) {
+        h1 {
+          padding-top: 8px;
+        }
+        
+        .popup-inner {
+          padding-top: 24px;
+          padding-bottom: 24px;
+        }
+      }
+    }
+    
+    /* Prevent text selection during drag */
+    .toolbar img {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    /* Loading state */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
-  <h1><span>X</span>elom Fleet Manager<input id="searchBox" class="search" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><button id="filterBtn" class="filter-btn" type="button">Filter</button></h1>
+  <h1>
+    <span>X</span>elom Fleet Manager
+    <input id="searchBox" class="search" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="filterBtn" class="filter-btn" type="button">Filter</button>
+  </h1>
   <div id="map"></div>
   <div class="topbar">
-    <div class="dropdown"><button aria-label="Settings" id="settingsBtn">&#9881;</button><div class="dropdown-menu" id="settingsMenu"><button onclick="syncMarkers()">🔄 Sync</button><button onclick="removeAllMarkers()">🗑️ Remove all</button></div></div>
-    <div class="dropdown"><button aria-label="Layers" id="layersBtn">&#9776;</button><div class="dropdown-menu" id="layersMenu"><label><input type="checkbox" id="layerGroomer" checked> Groomers</label><label><input type="checkbox" id="layerCharger" checked> Chargers</label><label><input type="checkbox" id="layerWorker" checked> Workers</label></div></div>
+    <!-- Settings -->
+    <div class="dropdown">
+      <button aria-label="Settings" id="settingsBtn">&#9881;</button>
+      <div class="dropdown-menu" id="settingsMenu">
+        <button onclick="syncMarkers()">🔄 Sync</button>
+        <button onclick="removeAllMarkers()">🗑️ Remove all</button>
+      </div>
+    </div>
+    <!-- Layers -->
+    <div class="dropdown">
+      <button aria-label="Layers" id="layersBtn">&#9776;</button>
+      <div class="dropdown-menu" id="layersMenu">
+        <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
+        <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
+        <label><input type="checkbox" id="layerWorker" checked> Workers</label>
+      </div>
+    </div>
   </div>
   <div class="toolbar" id="toolbar">
-    <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer"/>
-    <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger"/>
-    <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker"/>
-  </div>
-  <div id="customPopup" class="custom-popup"><button class="close-btn" id="closePopupBtn">&times;</button><div class="popup-inner"><div id="customPopupContent"></div></div></div>
-  <script type="module">
-    import*as L from"https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
-    import{initializeApp}from"https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot}from"https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-    const firebaseConfig={apiKey:"AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",authDomain:"xelom-fleet-manager.firebaseapp.com",projectId:"xelom-fleet-manager",storageBucket:"xelom-fleet-manager.appspot.com",messagingSenderId:"173013299862",appId:"1:173013299862:web:5a14d25468887f7dfe48b7",measurementId:"G-G63KR8F5X9"};
-    const app=initializeApp(firebaseConfig);const db=getFirestore(app);
-    const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const iconSize=isMobile?[52,52]:[64,64];const iconAnchor=isMobile?[26,44]:[32,54];const popupAnchor=[0,isMobile?-46:-56];
-    const icons={groomer:L.icon({iconUrl:'groomer.png',iconSize,iconAnchor,popupAnchor}),groomerissues:L.icon({iconUrl:'groomerissues.png',iconSize,iconAnchor,popupAnchor}),charger:L.icon({iconUrl:'charger.png',iconSize,iconAnchor,popupAnchor}),worker:L.icon({iconUrl:'van.png',iconSize,iconAnchor,popupAnchor})};
-    function makeId(){return'm_'+Math.random().toString(36).slice(2)+Date.now().toString(36)}
-    const map=L.map('map',{tap:true,touchZoom:true,dragging:true,zoomControl:!isMobile}).setView([46.5,11.3],10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-    if(isMobile)L.control.zoom({position:'bottomleft'}).addTo(map);
-    let markersMap={};let allMarkers=[];let currentPopupData=null;let currentPopupMarker=null;
-    let touchDragType=null;let touchDragElement=null;let touchDragClone=null;
-    document.querySelectorAll('.toolbar img').forEach(img=>{
-      img.setAttribute('draggable','true');
-      img.addEventListener('dragstart',e=>{touchDragType=img.getAttribute('data-type');e.dataTransfer.setData('text/plain',touchDragType)});
-      img.addEventListener('dragend',()=>{touchDragType=null});
-      img.addEventListener('touchstart',e=>{e.preventDefault();touchDragType=img.getAttribute('data-type');touchDragElement=img;touchDragClone=img.cloneNode(true);touchDragClone.style.position='fixed';touchDragClone.style.pointerEvents='none';touchDragClone.style.zIndex='9999';touchDragClone.style.opacity='0.8';touchDragClone.style.transform='scale(1.2)';document.body.appendChild(touchDragClone);const touch=e.touches[0];touchDragClone.style.left=(touch.clientX-26)+'px';touchDragClone.style.top=(touch.clientY-26)+'px'},{passive:false});
-      img.addEventListener('touchmove',e=>{if(!touchDragClone)return;e.preventDefault();const touch=e.touches[0];touchDragClone.style.left=(touch.clientX-26)+'px';touchDragClone.style.top=(touch.clientY-26)+'px'},{passive:false});
-      img.addEventListener('touchend',e=>{if(!touchDragClone||!touchDragType)return;const touch=e.changedTouches[0];const mapDiv=document.getElementById('map');const rect=mapDiv.getBoundingClientRect();if(touch.clientX>=rect.left&&touch.clientX<=rect.right&&touch.clientY>=rect.top&&touch.clientY<=rect.bottom){const x=touch.clientX-rect.left;const y=touch.clientY-rect.top;const latlng=map.containerPointToLatLng([x,y]);addMarker(touchDragType,latlng,{},makeId(),true)}if(touchDragClone){touchDragClone.remove();touchDragClone=null}touchDragType=null;touchDragElement=null})
-    });
-    const mapDiv=document.getElementById('map');
-    mapDiv.addEventListener('dragover',e=>{e.preventDefault()});
-    mapDiv.addEventListener('drop',e=>{e.preventDefault();if(!touchDragType)return;const rect=mapDiv.getBoundingClientRect();const x=e.clientX-rect.left;const y=e.clientY-rect.top;const latlng=map.containerPointToLatLng([x,y]);addMarker(touchDragType,latlng,{},makeId(),true);touchDragType=null});
-    window.closeCustomPopup=function(){document.getElementById('customPopup').style.display='none';document.getElementById('customPopupContent').innerHTML='';currentPopupMarker=null;currentPopupData=null;document.body.style.overflow=''};
-    document.getElementById('closePopupBtn').addEventListener('click',closeCustomPopup);
-    function formatDateTime(date){return new Date(date).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
-    function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML}
-    function showCustomPopup(marker,type,data){
-      currentPopupMarker=marker;currentPopupData=data;if(isMobile)document.body.style.overflow='hidden';
-      let formHtml='';
-      if(type==='groomer'){
-        data.software=data.software||{vcu:'',display:'',battery:'',evcc:'',vfd:''};data.reworks=data.reworks||[];data.activeIssue=data.activeIssue||null;data.archivedIssues=data.archivedIssues||[];
-        const status=data.status||"Working";const imgSrc=status==="Issue"?"groomerissues.png":"groomer.png";
-        formHtml=`<div><div class="groomer-tabs"><button class="groomer-tab active" data-tab="general">General</button><button class="groomer-tab" data-tab="software">Software</button><button class="groomer-tab" data-tab="issues">Issues</button></div>
-        <div class="groomer-tab-content active" id="tab-general"><div class="groomer-popup-flex"><div class="groomer-popup-img"><img id="groomerStatusImg" src="${imgSrc}" alt="Groomer"/></div><div class="groomer-popup-fields"><label>Serial Number</label><input id="serial" value="${data.serial||''}"><label>Size</label><select id="size"><option ${data.size==="280"?"selected":""}>280</option><option ${data.size==="320"?"selected":""}>320</option><option ${data.size==="250"?"selected":""}>250</option></select><label>Blade Serial</label><input id="blade" value="${data.blade||''}"><label>Tiller Serial</label><input id="tiller" value="${data.tiller||''}"><label>Status</label><select id="status"><option ${status==="Working"?"selected":""}>Working</option><option ${status==="Issue"?"selected":""}>Issue</option></select></div></div>
-        <div class="groomer-popup-details"><div><label>Responsible</label><input id="responsibleName" placeholder="Name" value="${data.responsibleName||''}"><input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||''}" inputmode="tel"><div id="responsiblePhoneLink" class="phone-link"></div><label>Driver</label><input id="driverName" placeholder="Name" value="${data.driverName||''}"><input id="driverPhone" placeholder="Phone" value="${data.driverPhone||''}" inputmode="tel"><div id="driverPhoneLink" class="phone-link"></div><label>Mechanic</label><input id="mechanicName" placeholder="Name" value="${data.mechanicName||''}"><input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||''}" inputmode="tel"><div id="mechanicPhoneLink" class="phone-link"></div></div><div><label>Ski Area Name</label><input id="skiAreaName" value="${data.skiAreaName||''}"><label>Address</label><input id="skiAreaAddress" value="${data.skiAreaAddress||''}"><div id="skiAreaAddressLink" class="address-link"></div><label>Hotel Name</label><input id="hotelName" value="${data.hotelName||''}"><label>Hotel Address</label><input id="hotelAddress" value="${data.hotelAddress||''}"><div id="hotelAddressLink" class="address-link"></div></div></div></div>
-        <div class="groomer-tab-content" id="tab-software"><div class="software-section"><label>VCU Software</label><input id="sw-vcu" value="${data.software.vcu||''}"><label>Display Software</label><input id="sw-display" value="${data.software.display||''}"><label>Battery Software</label><input id="sw-battery" value="${data.software.battery||''}"><label>EVCC Software</label><input id="sw-evcc" value="${data.software.evcc||''}"><label>VFD Software</label><input id="sw-vfd" value="${data.software.vfd||''}"></div><div class="section-title">Reworks</div><div class="rework-list" id="reworkList">${renderReworkList(data.reworks)}</div><div class="add-rework-row"><input type="text" id="newReworkInput" placeholder="Enter new rework..."><button class="add-rework-btn" id="addReworkBtn">Add</button></div></div>
-        <div class="groomer-tab-content" id="tab-issues"><div id="issueContent">${renderIssueContent(data)}</div></div>
-        <div class="popup-actions"><button class="btn save-btn" id="saveBtn">Save</button><button class="btn remove-btn" id="removeBtn">Remove</button></div></div>`;
+    <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer" />
+    <img src="charger.png" id="drag
+      data.activeIssue.solution = solution;
+          data.activeIssue.resolvedAt = new Date().toISOString();
+          
+          data.archivedIssues = data.archivedIssues || [];
+          data.archivedIssues.unshift(data.activeIssue);
+          
+          data.activeIssue = null;
+          data.status = 'Working';
+          
+          const statusSelect = popupEl.querySelector('#status');
+          if (statusSelect) statusSelect.value = 'Working';
+          const imgEl = popupEl.querySelector('#groomerStatusImg');
+          if (imgEl) imgEl.src = 'groomer.png';
+          
+          marker.setIcon(icons.groomer);
+          
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupIssueHandlers(popupEl, data, marker);
+          
+          alert('Issue resolved and archived!');
+        });
       }
-      if(type==='charger'){formHtml=`<div class="popup-form"><label>Power</label><select id="power"><option ${data.power==="150 kW"?"selected":""}>150 kW</option><option ${data.power==="30 kW"?"selected":""}>30 kW</option><option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option></select><label>Serial</label><input id="serial" value="${data.serial||''}"><label>SIM PIN</label><input id="pin" value="${data.pin||''}" inputmode="numeric"><label>SIM Serial</label><input id="sim" value="${data.sim||''}"><div class="popup-actions"><button class="btn save-btn" id="saveBtn">Save</button><button class="btn remove-btn" id="removeBtn">Remove</button></div></div>`}
-      if(type==='worker'){formHtml=`<div class="popup-form"><label>Worker Name</label><input id="workerName" value="${data.workerName||''}"><label>Car Model</label><input id="carModel" value="${data.carModel||''}"><label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||''}"><label>Day Present</label><input type="date" id="day" value="${data.day||''}"><label>Planned End</label><input type="date" id="end" value="${data.end||''}"><div class="popup-actions"><button class="btn save-btn" id="saveBtn">Save</button><button class="btn remove-btn" id="removeBtn">Remove</button></div></div>`}
-      document.getElementById('customPopupContent').innerHTML=formHtml;document.getElementById('customPopup').style.display='block';document.getElementById('customPopup').scrollTop=0;
-      const popupEl=document.getElementById('customPopupContent');
-      if(type==='groomer'){popupEl.querySelectorAll('.groomer-tab').forEach(tab=>{tab.addEventListener('click',()=>{popupEl.querySelectorAll('.groomer-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');popupEl.querySelectorAll('.groomer-tab-content').forEach(c=>c.classList.remove('active'));popupEl.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active')})});setupReworkHandlers(popupEl,data,marker);setupIssueHandlers(popupEl,data,marker)}
-      const statusSelect=popupEl.querySelector('#status'),imgEl=popupEl.querySelector('#groomerStatusImg');
-      if(statusSelect&&imgEl){statusSelect.addEventListener('change',()=>{imgEl.src=statusSelect.value==="Issue"?"groomerissues.png":"groomer.png";if(statusSelect.value==="Issue"&&!data.activeIssue){popupEl.querySelectorAll('.groomer-tab').forEach(t=>t.classList.remove('active'));popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');popupEl.querySelectorAll('.groomer-tab-content').forEach(c=>c.classList.remove('active'));popupEl.querySelector('#tab-issues').classList.add('active')}})}
-      function updateAddressLink(iId,lId){const inp=popupEl.querySelector(`#${iId}`),lnk=popupEl.querySelector(`#${lId}`);if(inp&&lnk){const set=a=>{lnk.innerHTML=a?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}" target="_blank" style="color:#4af">📍 Open in Maps</a>`:''};set(inp.value.trim());inp.addEventListener('input',()=>set(inp.value.trim()))}}
-      updateAddressLink('skiAreaAddress','skiAreaAddressLink');updateAddressLink('hotelAddress','hotelAddressLink');
-      function updatePhoneLink(iId,lId){const inp=popupEl.querySelector(`#${iId}`),lnk=popupEl.querySelector(`#${lId}`);if(inp&&lnk){const set=p=>{const c=p.replace(/[^+\d]/g,'');lnk.innerHTML=c?`<a href="tel:${c}" style="color:#4af">📞 Call</a>`:''};set(inp.value.trim());inp.addEventListener('input',()=>set(inp.value.trim()))}}
-      updatePhoneLink('responsiblePhone','responsiblePhoneLink');updatePhoneLink('driverPhone','driverPhoneLink');updatePhoneLink('mechanicPhone','mechanicPhoneLink');
-      const saveBtn=popupEl.querySelector('#saveBtn'),removeBtn=popupEl.querySelector('#removeBtn');
-      if(saveBtn){saveBtn.addEventListener('click',async()=>{saveBtn.classList.add('loading');saveBtn.textContent='Saving...';const vals={};popupEl.querySelectorAll('#tab-general input,#tab-general select').forEach(i=>{if(i.id)vals[i.id]=i.value});if(type==='groomer'){vals.software={vcu:popupEl.querySelector('#sw-vcu')?.value||'',display:popupEl.querySelector('#sw-display')?.value||'',battery:popupEl.querySelector('#sw-battery')?.value||'',evcc:popupEl.querySelector('#sw-evcc')?.value||'',vfd:popupEl.querySelector('#sw-vfd')?.value||''};vals.reworks=data.reworks||[];vals.activeIssue=data.activeIssue||null;vals.archivedIssues=data.archivedIssues||[]}await saveMarker(marker.options.markerId,marker.options.markerType,marker.getLatLng(),vals);if(marker.options.markerType==='groomer')marker.setIcon(vals.status==='Issue'?icons.groomerissues:icons.groomer);saveBtn.classList.remove('loading');saveBtn.style.background='#22c55e';saveBtn.textContent='✓ Saved!';setTimeout(()=>{saveBtn.style.background='';saveBtn.textContent='Save';closeCustomPopup()},800)})}
-      if(removeBtn){removeBtn.addEventListener('click',async()=>{if(!confirm('Remove this marker?'))return;removeBtn.classList.add('loading');await removeMarker(marker.options.markerId);map.removeLayer(marker);delete markersMap[marker.options.markerId];closeCustomPopup()})}
+      
+      const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
+      if (showArchiveBtn) {
+        showArchiveBtn.addEventListener('click', () => {
+          const container = popupEl.querySelector('#archiveContainer');
+          if (container.innerHTML) {
+            container.innerHTML = '';
+            showArchiveBtn.textContent = `📁 View Archive (${data.archivedIssues?.length || 0})`;
+          } else {
+            container.innerHTML = renderArchiveList(data.archivedIssues || []);
+            showArchiveBtn.textContent = '📁 Hide Archive';
+            setupArchiveItemHandlers(popupEl, data);
+          }
+        });
+      }
     }
-    function renderReworkList(reworks){if(!reworks||reworks.length===0)return'<div class="no-issue-msg">No reworks pending</div>';return reworks.map((r,i)=>`<div class="rework-item" data-index="${i}"><input type="checkbox" class="rework-checkbox" data-index="${i}"><span>${escapeHtml(r)}</span></div>`).join('')}
-    function setupReworkHandlers(popupEl,data,marker){const addBtn=popupEl.querySelector('#addReworkBtn'),input=popupEl.querySelector('#newReworkInput'),list=popupEl.querySelector('#reworkList');if(addBtn&&input){addBtn.addEventListener('click',()=>{const t=input.value.trim();if(!t)return;data.reworks=data.reworks||[];data.reworks.push(t);input.value='';list.innerHTML=renderReworkList(data.reworks);attachReworkCheckboxListeners(popupEl,data,marker)});input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addBtn.click()}})}attachReworkCheckboxListeners(popupEl,data,marker)}
-    function attachReworkCheckboxListeners(popupEl,data,marker){popupEl.querySelectorAll('.rework-checkbox').forEach(cb=>{cb.addEventListener('change',()=>{data.reworks.splice(parseInt(cb.dataset.index),1);popupEl.querySelector('#reworkList').innerHTML=renderReworkList(data.reworks);attachReworkCheckboxListeners(popupEl,data,marker)})})}
-    function renderIssueContent(data){const has=data.activeIssue&&data.activeIssue.problem;if(has){return`<div class="active-issue-box"><h4>⚠️ Active Issue</h4><div style="margin-bottom:10px"><strong>Problem:</strong> ${escapeHtml(data.activeIssue.problem)}</div><div style="margin-bottom:6px;font-size:12px;color:#888">Started: ${formatDateTime(data.activeIssue.createdAt)}</div>${data.activeIssue.responsible?`<div style="margin-bottom:6px"><strong>Responsible:</strong> ${escapeHtml(data.activeIssue.responsible)}</div>`:''}<div class="section-title">Updates</div><div class="issue-updates" id="issueUpdates">${renderIssueUpdates(data.activeIssue.updates||[])}</div><div class="add-update-row"><input type="text" id="newUpdateInput" placeholder="Add update..."><button class="add-rework-btn" id="addUpdateBtn">Add</button></div><div style="margin-top:16px"><label style="color:#ffcc00;font-size:13px;font-weight:600">Solution:</label><textarea id="issueSolution" rows="3" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;resize:vertical">${escapeHtml(data.activeIssue.solution||'')}</textarea></div><button class="done-issue-btn" id="doneIssueBtn">✓ Mark as Done & Archive</button></div><button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length||0})</button><div id="archiveContainer"></div>`}
-    const isIssue=data.status==='Issue';return`${isIssue?`<div class="active-issue-box" style="border-color:#ffcc00;background:#1a1a0a"><h4 style="color:#ffcc00">Create New Issue Report</h4><label style="color:#ffcc00;font-size:13px;font-weight:600">Problem Description:</label><textarea id="newIssueProblem" rows="3" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px;resize:vertical" placeholder="Describe the problem..."></textarea><label style="color:#ffcc00;font-size:13px;font-weight:600;margin-top:10px;display:block">Responsible Person:</label><input type="text" id="newIssueResponsible" placeholder="Who is responsible?" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #333;background:#1e1e1e;color:#f1f1f1;font-size:16px"><button class="add-rework-btn" style="width:100%;margin-top:12px;padding:14px" id="createIssueBtn">Create Issue</button></div>`:`<div class="no-issue-msg"><p>No active issues</p><p style="font-size:13px;margin-top:8px">Set status to "Issue" to report a problem</p></div>`}<button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length||0})</button><div id="archiveContainer"></div>`}
-    function renderIssueUpdates(updates){if(!updates||updates.length===0)return'<div class="no-issue-msg" style="padding:10px">No updates yet</div>';return updates.map(u=>`<div class="issue-update-item"><div class="update-time">${formatDateTime(u.timestamp)}</div><div class="update-text">${escapeHtml(u.text)}</div></div>`).join('')}
-    function setupIssueHandlers(popupEl,data,marker){
-      const createBtn=popupEl.querySelector('#createIssueBtn');if(createBtn){createBtn.addEventListener('click',()=>{const prob=popupEl.querySelector('#newIssueProblem')?.value.trim(),resp=popupEl.querySelector('#newIssueResponsible')?.value.trim();if(!prob){alert('Please describe the problem');return}data.activeIssue={problem:prob,responsible:resp,createdAt:new Date().toISOString(),updates:[],solution:''};popupEl.querySelector('#issueContent').innerHTML=renderIssueContent(data);setupIssueHandlers(popupEl,data,marker)})}
-      const addUpdateBtn=popupEl.querySelector('#addUpdateBtn');if(addUpdateBtn){addUpdateBtn.addEventListener('click',()=>{const inp=popupEl.querySelector('#newUpdateInput'),txt=inp?.value.trim();if(!txt)return;data.activeIssue.updates=data.activeIssue.updates||[];data.activeIssue.updates.push({text:txt,timestamp:new Date().toISOString()});inp.value='';popupEl.querySelector('#issueUpdates').innerHTML=renderIssueUpdates(data.activeIssue.updates)});popupEl.querySelector('#newUpdateInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addUpdateBtn.click()}})}
-      const doneBtn=popupEl.querySelector('#doneIssueBtn');if(doneBtn){doneBtn.addEventListener('click',async()=>{const sol=popupEl.querySelector('#issueSolution')?.value.trim();if(!sol){alert('Please enter the solution before closing');return}data.activeIssue.solution=sol;data.activeIssue.resolvedAt=new Date().toISOString();data.archivedIssues=data.archivedIssues||[];data.archivedIssues.unshift(data.activeIssue);data.activeIssue=null;data.status='Working';const ss=popupEl.querySelector('#status');if(ss)ss.value='Working';const im=popupEl.querySelector('#groomerStatusImg');if(im)im.src='groomer.png';marker.setIcon(icons.groomer);popupEl.querySelector('#issueContent').innerHTML=renderIssueContent(data);setupIssueHandlers(popupEl,data,marker);alert('Issue resolved and archived!')})}
-      const archBtn=popupEl.querySelector('#showArchiveBtn');if(archBtn){archBtn.addEventListener('click',()=>{const cont=popupEl.querySelector('#archiveContainer');if(cont.innerHTML){cont.innerHTML='';archBtn.textContent=`📁 View Archive (${data.archivedIssues?.length||0})`}else{cont.innerHTML=renderArchiveList(data.archivedIssues||[]);archBtn.textContent='📁 Hide Archive';setupArchiveItemHandlers(popupEl,data)}})}
+
+    function renderArchiveList(archivedIssues) {
+      if (!archivedIssues || archivedIssues.length === 0) {
+        return '<div class="no-issue-msg" style="margin-top: 10px;">No archived issues</div>';
+      }
+      return `
+        <div class="archive-list">
+          ${archivedIssues.map((issue, index) => `
+            <div class="archive-item" data-index="${index}">
+              <div class="archive-item-header">
+                <span style="color: #ef4444;">Issue #${archivedIssues.length - index}</span>
+                <span class="archive-item-date">${formatDateTime(issue.resolvedAt || issue.createdAt)}</span>
+              </div>
+              <div class="archive-item-problem">${escapeHtml(issue.problem)}</div>
+              <div class="archive-item-solution">✓ ${escapeHtml(issue.solution || 'No solution recorded')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
     }
-    function renderArchiveList(issues){if(!issues||issues.length===0)return'<div class="no-issue-msg" style="margin-top:10px">No archived issues</div>';return`<div class="archive-list">${issues.map((iss,i)=>`<div class="archive-item" data-index="${i}"><div class="archive-item-header"><span style="color:#ef4444">Issue #${issues.length-i}</span><span class="archive-item-date">${formatDateTime(iss.resolvedAt||iss.createdAt)}</span></div><div class="archive-item-problem">${escapeHtml(iss.problem)}</div><div class="archive-item-solution">✓ ${escapeHtml(iss.solution||'No solution recorded')}</div></div>`).join('')}</div>`}
-    function setupArchiveItemHandlers(popupEl,data){popupEl.querySelectorAll('.archive-item').forEach(item=>{item.addEventListener('click',()=>{const iss=data.archivedIssues[parseInt(item.dataset.index)];const cont=popupEl.querySelector('#archiveContainer');cont.innerHTML=`<div class="archive-detail-view"><button class="back-btn" id="backToArchiveList">← Back</button><h4>Issue Details</h4><div style="margin-bottom:12px"><strong>Problem:</strong><br>${escapeHtml(iss.problem)}</div>${iss.responsible?`<div style="margin-bottom:8px"><strong>Responsible:</strong> ${escapeHtml(iss.responsible)}</div>`:''}<div style="margin-bottom:8px;font-size:12px;color:#888">Created: ${formatDateTime(iss.createdAt)}<br>Resolved: ${formatDateTime(iss.resolvedAt)}</div>${iss.updates&&iss.updates.length>0?`<div class="section-title">Timeline</div><div class="issue-updates">${renderIssueUpdates(iss.updates)}</div>`:''}<div style="margin-top:12px;padding:12px;background:#1a2a1a;border-radius:8px;border-left:3px solid #22c55e"><strong style="color:#22c55e">Solution:</strong><br>${escapeHtml(iss.solution)}</div></div>`;popupEl.querySelector('#backToArchiveList').addEventListener('click',()=>{cont.innerHTML=renderArchiveList(data.archivedIssues);setupArchiveItemHandlers(popupEl,data)})})})}
-    function addMarker(type,latlng,data={},id,saveToDb=false){let icon=icons[type];if(type==='groomer'&&data.status==='Issue')icon=icons.groomerissues;if(markersMap[id])return;const marker=L.marker(latlng,{icon:icon,draggable:true});marker.addTo(map);marker.options.markerId=id||makeId();marker.options.markerType=type;markersMap[marker.options.markerId]=marker;marker.on('click',()=>{showCustomPopup(marker,type,data)});if(saveToDb)saveMarker(marker.options.markerId,type,latlng,data);marker.on('dragend',async ev=>{await updateMarkerPosition(marker.options.markerId,ev.target.getLatLng())})}
-    async function saveMarker(id,type,latlng,data){await setDoc(doc(db,"markers",id),{id,type,lat:latlng.lat,lng:latlng.lng,data})}
-    async function updateMarkerPosition(id,latlng){await setDoc(doc(db,"markers",id),{...(allMarkers.find(m=>m.id===id)||{}),id,lat:latlng.lat,lng:latlng.lng},{merge:true})}
-    async function removeMarker(id){await deleteDoc(doc(db,"markers",id))}
-    function refreshMarkersFromFirestore(){onSnapshot(collection(db,"markers"),snapshot=>{Object.values(markersMap).forEach(m=>map.removeLayer(m));markersMap={};allMarkers=[];snapshot.forEach(d=>{allMarkers.push(d.data())});allMarkers.forEach(m=>addMarker(m.type,L.latLng(m.lat,m.lng),m.data,m.id,false));applyFilters()})}
+
+    function setupArchiveItemHandlers(popupEl, data) {
+      const items = popupEl.querySelectorAll('.archive-item');
+      items.forEach(item => {
+        item.addEventListener('click', () => {
+          const index = parseInt(item.dataset.index);
+          const issue = data.archivedIssues[index];
+          
+          const container = popupEl.querySelector('#archiveContainer');
+          container.innerHTML = `
+            <div class="archive-detail-view">
+              <button class="back-btn" id="backToArchiveList">← Back</button>
+              <h4>Issue Details</h4>
+              <div style="margin-bottom: 12px;">
+                <strong>Problem:</strong><br>
+                ${escapeHtml(issue.problem)}
+              </div>
+              ${issue.responsible ? `<div style="margin-bottom: 8px;"><strong>Responsible:</strong> ${escapeHtml(issue.responsible)}</div>` : ''}
+              <div style="margin-bottom: 8px; font-size: 12px; color: #888;">
+                Created: ${formatDateTime(issue.createdAt)}<br>
+                Resolved: ${formatDateTime(issue.resolvedAt)}
+              </div>
+              
+              ${issue.updates && issue.updates.length > 0 ? `
+                <div class="section-title">Timeline</div>
+                <div class="issue-updates">
+                  ${renderIssueUpdates(issue.updates)}
+                </div>
+              ` : ''}
+              
+              <div style="margin-top: 12px; padding: 12px; background: #1a2a1a; border-radius: 8px; border-left: 3px solid #22c55e;">
+                <strong style="color: #22c55e;">Solution:</strong><br>
+                ${escapeHtml(issue.solution)}
+              </div>
+            </div>
+          `;
+          
+          popupEl.querySelector('#backToArchiveList').addEventListener('click', () => {
+            container.innerHTML = renderArchiveList(data.archivedIssues);
+            setupArchiveItemHandlers(popupEl, data);
+          });
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function addMarker(type, latlng, data={}, id, saveToDb=false) {
+      let icon = icons[type];
+      if (type === 'groomer' && data.status === 'Issue') {
+        icon = icons.groomerissues;
+      }
+      if (markersMap[id]) return;
+      const marker = L.marker(latlng, { icon: icon, draggable: true });
+      marker.addTo(map);
+      marker.options.markerId = id || makeId();
+      marker.options.markerType = type;
+      markersMap[marker.options.markerId] = marker;
+
+      marker.on('click', () => {
+        showCustomPopup(marker, type, data);
+      });
+
+      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
+
+      marker.on('dragend', async ev => {
+        const pos = ev.target.getLatLng();
+        await updateMarkerPosition(marker.options.markerId, pos);
+      });
+    }
+
+    async function saveMarker(id, type, latlng, data) {
+      await setDoc(doc(db, "markers", id), {
+        id, type, lat: latlng.lat, lng: latlng.lng, data
+      });
+    }
+
+    async function updateMarkerPosition(id, latlng) {
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
+        id, lat: latlng.lat, lng: latlng.lng
+      }, { merge: true });
+    }
+
+    async function removeMarker(id) {
+      await deleteDoc(doc(db, "markers", id));
+    }
+
+    function refreshMarkersFromFirestore() {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
+        Object.values(markersMap).forEach(m => map.removeLayer(m));
+        markersMap = {};
+        allMarkers = [];
+        snapshot.forEach(docSnap => {
+          const m = docSnap.data();
+          allMarkers.push(m);
+        });
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
+        applyFilters();
+      });
+    }
     refreshMarkersFromFirestore();
-    window.syncMarkers=function(){alert("Synced!")};
-    window.removeAllMarkers=function(){if(prompt("Enter password to remove all:")!=="1111"){alert("Incorrect password.");return}allMarkers.forEach(m=>removeMarker(m.id));alert("All machines removed.")};
-    document.getElementById('settingsBtn').addEventListener('click',e=>{e.stopPropagation();document.getElementById('settingsMenu').classList.toggle('show');document.getElementById('layersMenu').classList.remove('show')});
-    document.getElementById('layersBtn').addEventListener('click',e=>{e.stopPropagation();document.getElementById('layersMenu').classList.toggle('show');document.getElementById('settingsMenu').classList.remove('show')});
-    document.addEventListener('click',e=>{if(!e.target.closest('.dropdown'))document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('show'))});
-    function applyFilters(){const g=document.getElementById('layerGroomer').checked,c=document.getElementById('layerCharger').checked,w=document.getEle
+
+    window.syncMarkers = function() {
+      alert("Synced!");
+    };
+    
+    window.removeAllMarkers = function() {
+      const pw = prompt("Enter password to remove all machines:");
+      if (pw !== "1111") {
+        alert("Incorrect password.");
+        return;
+      }
+      allMarkers.forEach(m => removeMarker(m.id));
+      alert("All machines removed.");
+    };
+
+    // Dropdown toggle - updated for mobile
+    document.getElementById('settingsBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('settingsMenu').classList.toggle('show');
+      document.getElementById('layersMenu').classList.remove('show');
+    });
+    
+    document.getElementById('layersBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('layersMenu').classList.toggle('show');
+      document.getElementById('settingsMenu').classList.remove('show');
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    function applyFilters() {
+      const showG = document.getElementById('layerGroomer').checked;
+      const showC = document.getElementById('layerCharger').checked;
+      const showW = document.getElementById('layerWorker').checked;
+      Object.values(markersMap).forEach(m => {
+        const type = m.options.markerType;
+        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || (type==='worker' && !showW)) {
+          map.removeLayer(m);
+        } else {
+          map.addLayer(m);
+        }
+      });
+    }
+    document.getElementById('layerGroomer').addEventListener('change', applyFilters);
+    document.getElementById('layerCharger').addEventListener('change', applyFilters);
+    document.getElementById('layerWorker').addEventListener('change', applyFilters);
+
+    let tempMarker = null;
+
+    const searchBox = document.getElementById('searchBox');
+    searchBox.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchBox.blur(); // Hide keyboard on mobile
+        const query = searchBox.value.trim();
+        if (!query) return;
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+        const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+        const results = await resp.json();
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          map.setView([lat, lon], 16);
+
+          if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+          tempMarker = L.marker([lat, lon], {
+            icon: L.icon({
+              iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+              iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+              shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+              shadowSize: [41, 41]
+            })
+          }).addTo(map);
+        } else {
+          alert('Place not found!');
+        }
+      }
+    });
+
+    searchBox.addEventListener('input', () => {
+      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    });
+
+    const filterBtn = document.getElementById('filterBtn');
+    let filterActive = false;
+    filterBtn.addEventListener('click', () => {
+      filterActive = !filterActive;
+      filterBtn.classList.toggle('active', filterActive);
+
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      markersMap = {};
+
+      if (!filterActive) {
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+
+      const q = searchBox.value.trim().toLowerCase();
+      if (!q) {
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+      const matches = allMarkers.filter(m => {
+        if (String(m.id).toLowerCase().includes(q)) return true;
+        if (String(m.type).toLowerCase().includes(q)) return true;
+        if (m.data) {
+          for (const v of Object.values(m.data)) {
+            if (String(v).toLowerCase().includes(q)) return true;
+          }
+        }
+        return false;
+      });
+      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
