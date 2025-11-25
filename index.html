@@ -50,7 +50,7 @@
     
     #map { 
       height: calc(100vh - 52px);
-      height: calc(100dvh - 52px); /* Dynamic viewport height for mobile */
+      height: calc(100dvh - 52px);
       width: 100%;
     }
     
@@ -60,7 +60,7 @@
       border: 2px solid #ffcc00;
       background: #121212;
       color: #fff;
-      font-size: 16px; /* Prevents zoom on iOS */
+      font-size: 16px;
       flex: 1;
       min-width: 100px;
       max-width: 200px;
@@ -296,7 +296,7 @@
       border: 1px solid #333;
       background: #1e1e1e;
       color: #f1f1f1;
-      font-size: 16px; /* Prevents zoom on iOS */
+      font-size: 16px;
       margin-bottom: 8px;
       transition: border-color 0.2s;
       -webkit-appearance: none;
@@ -355,6 +355,137 @@
     .save-btn:hover, .save-btn:active { background: #ffe066; }
     .remove-btn { background: #ef4444; color: white; }
     .remove-btn:hover, .remove-btn:active { background: #ff6666; }
+    
+    /* Change Location Button */
+    .change-location-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 8px;
+      width: 100%;
+      touch-action: manipulation;
+    }
+    
+    .change-location-btn:hover, .change-location-btn:active {
+      background: #2563eb;
+    }
+    
+    /* Location Archive Styles */
+    .location-archive {
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    
+    .location-archive-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      color: #ffcc00;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .location-archive-list {
+      margin-top: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .location-archive-item {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .location-archive-item .location-name {
+      color: #ffcc00;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .location-archive-item .location-dates {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .location-archive-item .location-address {
+      font-size: 13px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+    
+    /* Ski Area specific styles */
+    .skiarea-equipment-section {
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    
+    .skiarea-equipment-header {
+      color: #ffcc00;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .equipment-list {
+      max-height: 250px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .equipment-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #1e1e1e;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #333;
+    }
+    
+    .equipment-item img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    
+    .equipment-item .equipment-info {
+      flex: 1;
+    }
+    
+    .equipment-item .equipment-serial {
+      font-weight: 600;
+      color: #f1f1f1;
+    }
+    
+    .equipment-item .equipment-dates {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .equipment-item.archived {
+      opacity: 0.6;
+      border-style: dashed;
+    }
     
     /* Groomer popup custom styles */
     .groomer-popup-flex {
@@ -806,7 +937,7 @@
       background: #555;
     }
     
-    /* Safe area insets for notched phones (iPhone X+) */
+    /* Safe area insets for notched phones */
     @supports (padding-top: env(safe-area-inset-top)) {
       h1 {
         padding-top: calc(8px + env(safe-area-inset-top));
@@ -867,6 +998,7 @@
         <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
         <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
         <label><input type="checkbox" id="layerWorker" checked> Workers</label>
+        <label><input type="checkbox" id="layerSkiarea" checked> Ski Areas</label>
       </div>
     </div>
   </div>
@@ -874,6 +1006,7 @@
     <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer" />
     <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger" />
     <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker" />
+    <img src="skiarea.png" id="drag-skiarea" data-type="skiarea" title="Ski Area" alt="Ski Area" />
   </div>
   <!-- Custom popup (hidden by default) -->
   <div id="customPopup" class="custom-popup">
@@ -883,9 +1016,9 @@
   <script type="module">
     import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    // Your web app's Firebase configuration
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
       authDomain: "xelom-fleet-manager.firebaseapp.com",
@@ -905,7 +1038,8 @@
       groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
-      worker: L.icon({ iconUrl: 'van.png',     iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
+      worker: L.icon({ iconUrl: 'van.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      skiarea: L.icon({ iconUrl: 'skiarea.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
     };
 
     function makeId() {
@@ -919,10 +1053,10 @@
     }).addTo(map);
 
     // Marker registry
-    let markersMap = {}; // id -> marker
-    let allMarkers = []; // for search/filter
+    let markersMap = {};
+    let allMarkersData = {};
 
-    // Store current popup data reference for updates
+    // Store current popup data reference
     let currentPopupData = null;
     let currentPopupMarker = null;
 
@@ -933,7 +1067,6 @@
     
     const toolbarImages = document.querySelectorAll('.toolbar img');
     
-    // Desktop drag and drop
     toolbarImages.forEach(img => {
       img.setAttribute('draggable', 'true');
       
@@ -952,7 +1085,6 @@
         touchDragElement = img;
         dragType = img.getAttribute('data-type');
         
-        // Create a clone for visual feedback
         touchDragClone = img.cloneNode(true);
         touchDragClone.style.position = 'fixed';
         touchDragClone.style.pointerEvents = 'none';
@@ -984,7 +1116,6 @@
         const mapDiv = document.getElementById('map');
         const rect = mapDiv.getBoundingClientRect();
         
-        // Check if dropped on map
         if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
             touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
           const x = touch.clientX - rect.left;
@@ -1010,10 +1141,7 @@
 
     // Desktop drop on map
     const mapDiv = document.getElementById('map');
-    mapDiv.addEventListener('dragover', function(e) {
-      e.preventDefault();
-    });
-
+    mapDiv.addEventListener('dragover', e => e.preventDefault());
     mapDiv.addEventListener('drop', function(e) {
       e.preventDefault();
       if (!dragType) return;
@@ -1025,24 +1153,16 @@
       dragType = null;
     });
 
-    // --- Dropdown menu handling (touch-friendly) ---
+    // --- Dropdown menu handling ---
     function toggleMenu(menuId) {
       const menu = document.getElementById(menuId);
       const wasOpen = menu.classList.contains('show');
-      
-      // Close all menus first
       document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-      
-      // Toggle the clicked menu
-      if (!wasOpen) {
-        menu.classList.add('show');
-      }
+      if (!wasOpen) menu.classList.add('show');
     }
     
-    // Make toggleMenu available globally
     window.toggleMenu = toggleMenu;
     
-    // Button click handlers
     document.getElementById('settingsBtn').addEventListener('click', (e) => {
       e.stopPropagation();
       toggleMenu('settingsMenu');
@@ -1053,20 +1173,15 @@
       toggleMenu('layersMenu');
     });
     
-    // Close menus when clicking outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.dropdown')) {
         document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
       }
     });
     
-    // Prevent menu from closing when clicking inside it
     document.querySelectorAll('.dropdown-menu').forEach(menu => {
       menu.addEventListener('click', (e) => {
-        // Don't stop propagation for buttons (let them close the menu after action)
-        if (e.target.tagName !== 'BUTTON') {
-          e.stopPropagation();
-        }
+        if (e.target.tagName !== 'BUTTON') e.stopPropagation();
       });
     });
 
@@ -1076,7 +1191,6 @@
       document.getElementById('customPopupContent').innerHTML = '';
       currentPopupMarker = null;
       currentPopupData = null;
-      // Re-enable body scroll on mobile
       document.body.style.overflow = '';
     };
 
@@ -1087,29 +1201,220 @@
       });
     }
 
+    function formatDate(date) {
+      return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+    }
+
+    // --- Get all equipment for a ski area ---
+    function getEquipmentForSkiArea(skiAreaName) {
+      const equipment = { current: [], archived: [] };
+      
+      Object.values(allMarkersData).forEach(m => {
+        if (m.type === 'groomer' || m.type === 'charger') {
+          const data = m.data || {};
+          
+          // Check current location
+          if (data.skiAreaName === skiAreaName) {
+            equipment.current.push({
+              type: m.type,
+              serial: data.serial || 'Unknown',
+              id: m.id,
+              assignedDate: data.skiAreaAssignedDate || null
+            });
+          }
+          
+          // Check location history
+          if (data.locationHistory) {
+            data.locationHistory.forEach(loc => {
+              if (loc.skiAreaName === skiAreaName) {
+                equipment.archived.push({
+                  type: m.type,
+                  serial: data.serial || 'Unknown',
+                  id: m.id,
+                  from: loc.assignedDate,
+                  to: loc.leftDate
+                });
+              }
+            });
+          }
+        }
+      });
+      
+      return equipment;
+    }
+
+    // --- Render Location Section with Change Button ---
+    function renderLocationSection(data, type) {
+      const hasLocation = data.skiAreaName || data.skiAreaAddress;
+      
+      return `
+        <div class="section-title">📍 Location</div>
+        <div class="groomer-popup-details">
+          <div>
+            <label>Ski Area Name</label>
+            <input id="skiAreaName" value="${data.skiAreaName||""}" ${hasLocation ? 'readonly style="background:#2a2a2a;"' : ''}>
+            <label>Address</label>
+            <input id="skiAreaAddress" value="${data.skiAreaAddress||""}" ${hasLocation ? 'readonly style="background:#2a2a2a;"' : ''}>
+            <div id="skiAreaAddressLink" class="address-link"></div>
+            ${hasLocation ? `
+              <button class="change-location-btn" id="changeLocationBtn">🔄 Change Location</button>
+            ` : ''}
+          </div>
+          <div>
+            <label>Hotel Name</label>
+            <input id="hotelName" value="${data.hotelName||""}">
+            <label>Hotel Address</label>
+            <input id="hotelAddress" value="${data.hotelAddress||""}">
+            <div id="hotelAddressLink" class="address-link"></div>
+          </div>
+        </div>
+        
+        ${data.locationHistory && data.locationHistory.length > 0 ? `
+          <div class="location-archive">
+            <div class="location-archive-header" id="toggleLocationArchive">
+              <span>📁 Location History (${data.locationHistory.length})</span>
+              <span>▼</span>
+            </div>
+            <div class="location-archive-list" id="locationArchiveList" style="display: none;">
+              ${data.locationHistory.map((loc, i) => `
+                <div class="location-archive-item">
+                  <div class="location-name">${escapeHtml(loc.skiAreaName || 'Unknown')}</div>
+                  <div class="location-dates">${formatDate(loc.assignedDate)} - ${formatDate(loc.leftDate)}</div>
+                  <div class="location-address">${escapeHtml(loc.skiAreaAddress || '')}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // --- Setup Location Change Handler ---
+    function setupLocationChangeHandler(popupEl, data, marker) {
+      const changeBtn = popupEl.querySelector('#changeLocationBtn');
+      if (changeBtn) {
+        changeBtn.addEventListener('click', () => {
+          if (!confirm('Are you sure you want to change the location? The current location will be archived.')) return;
+          
+          // Archive current location
+          data.locationHistory = data.locationHistory || [];
+          data.locationHistory.unshift({
+            skiAreaName: data.skiAreaName,
+            skiAreaAddress: data.skiAreaAddress,
+            hotelName: data.hotelName,
+            hotelAddress: data.hotelAddress,
+            assignedDate: data.skiAreaAssignedDate || new Date().toISOString(),
+            leftDate: new Date().toISOString()
+          });
+          
+          // Clear current location
+          data.skiAreaName = '';
+          data.skiAreaAddress = '';
+          data.hotelName = '';
+          data.hotelAddress = '';
+          data.skiAreaAssignedDate = null;
+          
+          // Re-render the location section
+          const locationSection = popupEl.querySelector('#locationSection');
+          if (locationSection) {
+            locationSection.innerHTML = renderLocationSection(data, marker.options.markerType);
+            setupLocationChangeHandler(popupEl, data, marker);
+            setupAddressPhoneLinks(popupEl);
+          }
+        });
+      }
+      
+      // Toggle location archive
+      const toggleBtn = popupEl.querySelector('#toggleLocationArchive');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          const list = popupEl.querySelector('#locationArchiveList');
+          if (list) {
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+          }
+        });
+      }
+      
+      // Track when location is first set
+      const skiAreaNameInput = popupEl.querySelector('#skiAreaName');
+      if (skiAreaNameInput && !skiAreaNameInput.readOnly) {
+        skiAreaNameInput.addEventListener('blur', () => {
+          if (skiAreaNameInput.value.trim() && !data.skiAreaAssignedDate) {
+            data.skiAreaAssignedDate = new Date().toISOString();
+          }
+        });
+      }
+    }
+
+    // --- Setup Address/Phone Links ---
+    function setupAddressPhoneLinks(popupEl) {
+      function updateAddressLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (address) => {
+            if (address) {
+              const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
+              linkDiv.innerHTML = `<a href="${url}" target="_blank">📍 Open in Maps</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      
+      function updatePhoneLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (phone) => {
+            const clean = phone.replace(/[^+\d]/g, '');
+            if (clean) {
+              linkDiv.innerHTML = `<a href="tel:${clean}">📞 Call</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      
+      updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
+      updateAddressLink('hotelAddress', 'hotelAddressLink');
+      updateAddressLink('address', 'addressLink');
+      updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
+      updatePhoneLink('driverPhone', 'driverPhoneLink');
+      updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+      updatePhoneLink('phone', 'phoneLink');
+    }
+
     function showCustomPopup(marker, type, data) {
       currentPopupMarker = marker;
       currentPopupData = data;
-      
-      // Disable body scroll on mobile
       document.body.style.overflow = 'hidden';
       
       let formHtml = '';
+      
       if (type === 'groomer') {
-        // Initialize data structures if not present
         data.software = data.software || { vcu: '', display: '', battery: '', evcc: '', vfd: '' };
         data.reworks = data.reworks || [];
         data.activeIssue = data.activeIssue || null;
         data.archivedIssues = data.archivedIssues || [];
+        data.locationHistory = data.locationHistory || [];
         
         const status = data.status || "Working";
         const imgSrc = status === "Issue" ? "groomerissues.png" : "groomer.png";
         
         formHtml = `
           <div class="popup-inner">
-            <!-- Tabs -->
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
+              <button class="groomer-tab" data-tab="location">Location</button>
               <button class="groomer-tab" data-tab="software">Software</button>
               <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
@@ -1152,22 +1457,17 @@
                   <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
                   <div id="mechanicPhoneLink" class="phone-link"></div>
                 </div>
-                <div>
-                  <label>Ski Area Name</label>
-                  <input id="skiAreaName" value="${data.skiAreaName||""}">
-                  <label>Address</label>
-                  <input id="skiAreaAddress" value="${data.skiAreaAddress||""}">
-                  <div id="skiAreaAddressLink" class="address-link"></div>
-                  <label>Hotel Name</label>
-                  <input id="hotelName" value="${data.hotelName||""}">
-                  <label>Hotel Address</label>
-                  <input id="hotelAddress" value="${data.hotelAddress||""}">
-                  <div id="hotelAddressLink" class="address-link"></div>
-                </div>
               </div>
             </div>
             
-            <!-- Tab 2: Software -->
+            <!-- Tab 2: Location -->
+            <div class="groomer-tab-content" id="tab-location">
+              <div id="locationSection">
+                ${renderLocationSection(data, type)}
+              </div>
+            </div>
+            
+            <!-- Tab 3: Software -->
             <div class="groomer-tab-content" id="tab-software">
               <div class="software-section">
                 <label>VCU Software</label>
@@ -1192,7 +1492,7 @@
               </div>
             </div>
             
-            <!-- Tab 3: Issues -->
+            <!-- Tab 4: Issues -->
             <div class="groomer-tab-content" id="tab-issues">
               <div id="issueContent">
                 ${renderIssueContent(data)}
@@ -1206,24 +1506,47 @@
           </div>
         `;
       }
+      
       if (type === 'charger') {
+        data.locationHistory = data.locationHistory || [];
+        
         formHtml = `
-          <div class="popup-inner popup-form">
-            <label>Power</label>
-            <select id="power">
-              <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
-              <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
-              <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
-            </select>
-            <label>Serial</label><input id="serial" value="${data.serial||""}">
-            <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
-            <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+          <div class="popup-inner">
+            <div class="groomer-tabs">
+              <button class="groomer-tab active" data-tab="general">General</button>
+              <button class="groomer-tab" data-tab="location">Location</button>
+            </div>
+            
+            <!-- Tab 1: General -->
+            <div class="groomer-tab-content active" id="tab-general">
+              <div class="popup-form">
+                <label>Power</label>
+                <select id="power">
+                  <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
+                  <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
+                  <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
+                </select>
+                <label>Serial</label><input id="serial" value="${data.serial||""}">
+                <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
+                <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+              </div>
+            </div>
+            
+            <!-- Tab 2: Location -->
+            <div class="groomer-tab-content" id="tab-location">
+              <div id="locationSection">
+                ${renderLocationSection(data, type)}
+              </div>
+            </div>
+            
             <div class="popup-actions">
               <button class="btn save-btn" id="saveBtn">Save</button>
               <button class="btn remove-btn" id="removeBtn">Remove</button>
             </div>
-          </div>`;
+          </div>
+        `;
       }
+      
       if (type === 'worker') {
         formHtml = `
           <div class="popup-inner popup-form">
@@ -1238,99 +1561,154 @@
             </div>
           </div>`;
       }
+      
+      if (type === 'skiarea') {
+        const equipment = getEquipmentForSkiArea(data.name || '');
+        
+        formHtml = `
+          <div class="popup-inner">
+            <div class="groomer-tabs">
+              <button class="groomer-tab active" data-tab="info">Info</button>
+              <button class="groomer-tab" data-tab="equipment">Equipment</button>
+            </div>
+            
+            <!-- Tab 1: Info -->
+            <div class="groomer-tab-content active" id="tab-info">
+              <div class="popup-form">
+                <label>Ski Area Name</label>
+                <input id="name" value="${data.name||""}">
+                <label>Address</label>
+                <input id="address" value="${data.address||""}">
+                <div id="addressLink" class="address-link"></div>
+                
+                <div class="section-title">Contacts</div>
+                <label>Responsible</label>
+                <input id="responsibleName" placeholder="Name" value="${data.responsibleName||""}">
+                <input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||""}">
+                <div id="responsiblePhoneLink" class="phone-link"></div>
+                
+                <label>Driver</label>
+                <input id="driverName" placeholder="Name" value="${data.driverName||""}">
+                <input id="driverPhone" placeholder="Phone" value="${data.driverPhone||""}">
+                <div id="driverPhoneLink" class="phone-link"></div>
+                
+                <label>Mechanic</label>
+                <input id="mechanicName" placeholder="Name" value="${data.mechanicName||""}">
+                <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
+                <div id="mechanicPhoneLink" class="phone-link"></div>
+              </div>
+            </div>
+            
+            <!-- Tab 2: Equipment -->
+            <div class="groomer-tab-content" id="tab-equipment">
+              <div class="skiarea-equipment-section">
+                <div class="skiarea-equipment-header">
+                  <span>🚜 Current Equipment (${equipment.current.length})</span>
+                </div>
+                <div class="equipment-list">
+                  ${equipment.current.length === 0 ? 
+                    '<div class="no-issue-msg">No equipment currently assigned</div>' :
+                    equipment.current.map(eq => `
+                      <div class="equipment-item">
+                        <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
+                        <div class="equipment-info">
+                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
+                          <div class="equipment-dates">Since: ${eq.assignedDate ? formatDate(eq.assignedDate) : 'Unknown'}</div>
+                        </div>
+                      </div>
+                    `).join('')
+                  }
+                </div>
+              </div>
+              
+              <div class="skiarea-equipment-section" style="margin-top: 16px;">
+                <div class="skiarea-equipment-header">
+                  <span>📁 Equipment History (${equipment.archived.length})</span>
+                </div>
+                <div class="equipment-list">
+                  ${equipment.archived.length === 0 ? 
+                    '<div class="no-issue-msg">No equipment history</div>' :
+                    equipment.archived.map(eq => `
+                      <div class="equipment-item archived">
+                        <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
+                        <div class="equipment-info">
+                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
+                          <div class="equipment-dates">${formatDate(eq.from)} - ${formatDate(eq.to)}</div>
+                        </div>
+                      </div>
+                    `).join('')
+                  }
+                </div>
+              </div>
+            </div>
+            
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>
+        `;
+      }
+      
       document.getElementById('customPopupContent').innerHTML = formHtml;
       document.getElementById('customPopup').style.display = 'block';
 
       const popupEl = document.getElementById('customPopupContent');
       
-      // Tab switching for groomer
+      // Tab switching
+      const tabs = popupEl.querySelectorAll('.groomer-tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+          popupEl.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active');
+        });
+      });
+      
+      // Setup handlers based on type
       if (type === 'groomer') {
-        const tabs = popupEl.querySelectorAll('.groomer-tab');
-        tabs.forEach(tab => {
-          tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
-            popupEl.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active');
-          });
-        });
-        
-        // Rework functionality
         setupReworkHandlers(popupEl, data, marker);
-        
-        // Issue functionality
         setupIssueHandlers(popupEl, data, marker);
-      }
-
-      // Add logic for address/phone links and image update for groomer
-      const statusSelect = popupEl.querySelector('#status');
-      const imgEl = popupEl.querySelector('#groomerStatusImg');
-      if (statusSelect && imgEl) {
-        statusSelect.addEventListener('change', () => {
-          imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
-          // If switching to Issue, prompt to create issue
-          if (statusSelect.value === "Issue" && !data.activeIssue) {
-            // Switch to issues tab
-            popupEl.querySelectorAll('.groomer-tab').forEach(t => t.classList.remove('active'));
-            popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');
-            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
-            popupEl.querySelector('#tab-issues').classList.add('active');
-          }
-        });
-      }
-      
-      function updateAddressLink(inputId, linkId) {
-        const input = popupEl.querySelector(`#${inputId}`);
-        const linkDiv = popupEl.querySelector(`#${linkId}`);
-        if (input && linkDiv) {
-          const setLink = (address) => {
-            if (address) {
-              const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
-              linkDiv.innerHTML = `<a href="${url}" target="_blank">📍 Open in Maps</a>`;
-            } else {
-              linkDiv.innerHTML = "";
+        setupLocationChangeHandler(popupEl, data, marker);
+        
+        // Status change handler
+        const statusSelect = popupEl.querySelector('#status');
+        const imgEl = popupEl.querySelector('#groomerStatusImg');
+        if (statusSelect && imgEl) {
+          statusSelect.addEventListener('change', () => {
+            imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
+            if (statusSelect.value === "Issue" && !data.activeIssue) {
+              popupEl.querySelectorAll('.groomer-tab').forEach(t => t.classList.remove('active'));
+              popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');
+              popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+              popupEl.querySelector('#tab-issues').classList.add('active');
             }
-          };
-          setLink(input.value.trim());
-          input.addEventListener('input', () => setLink(input.value.trim()));
+          });
         }
       }
-      updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
-      updateAddressLink('hotelAddress', 'hotelAddressLink');
       
-      function updatePhoneLink(inputId, linkId) {
-        const input = popupEl.querySelector(`#${inputId}`);
-        const linkDiv = popupEl.querySelector(`#${linkId}`);
-        if (input && linkDiv) {
-          const setLink = (phone) => {
-            const clean = phone.replace(/[^+\d]/g, '');
-            if (clean) {
-              linkDiv.innerHTML = `<a href="tel:${clean}">📞 Call</a>`;
-            } else {
-              linkDiv.innerHTML = "";
-            }
-          };
-          setLink(input.value.trim());
-          input.addEventListener('input', () => setLink(input.value.trim()));
-        }
+      if (type === 'charger') {
+        setupLocationChangeHandler(popupEl, data, marker);
       }
-      updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
-      updatePhoneLink('driverPhone', 'driverPhoneLink');
-      updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+      
+      // Setup address/phone links
+      setupAddressPhoneLinks(popupEl);
 
       // Save/Remove logic
       const saveBtn = popupEl.querySelector('#saveBtn');
       const removeBtn = popupEl.querySelector('#removeBtn');
+      
       if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
-          // Collect general fields
-          const generalInputs = popupEl.querySelectorAll('#tab-general input, #tab-general select, .popup-form input, .popup-form select');
+          const inputs = popupEl.querySelectorAll('input, select, textarea');
           const values = {};
-          generalInputs.forEach(i => {
-            if (i.id) values[i.id] = i.value;
+          inputs.forEach(i => {
+            if (i.id && !i.id.startsWith('sw-') && !i.id.startsWith('new')) {
+              values[i.id] = i.value;
+            }
           });
           
-          // Collect software fields for groomer
           if (type === 'groomer') {
             values.software = {
               vcu: popupEl.querySelector('#sw-vcu')?.value || '',
@@ -1342,26 +1720,33 @@
             values.reworks = data.reworks || [];
             values.activeIssue = data.activeIssue || null;
             values.archivedIssues = data.archivedIssues || [];
+            values.locationHistory = data.locationHistory || [];
+            values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
+          }
+          
+          if (type === 'charger') {
+            values.locationHistory = data.locationHistory || [];
+            values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
           }
           
           await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+          
           if (marker.options.markerType === 'groomer') {
-            if (values.status === 'Issue') {
-              marker.setIcon(icons.groomerissues);
-            } else {
-              marker.setIcon(icons.groomer);
-            }
+            marker.setIcon(values.status === 'Issue' ? icons.groomerissues : icons.groomer);
           }
+          
           alert('Saved!');
           closeCustomPopup();
         });
       }
+      
       if (removeBtn) {
         removeBtn.addEventListener('click', async () => {
           if (confirm('Are you sure you want to remove this marker?')) {
             await removeMarker(marker.options.markerId);
             map.removeLayer(marker);
             delete markersMap[marker.options.markerId];
+            delete allMarkersData[marker.options.markerId];
             closeCustomPopup();
           }
         });
@@ -1416,7 +1801,6 @@
       checkboxes.forEach(cb => {
         cb.addEventListener('change', async () => {
           const index = parseInt(cb.dataset.index);
-          // Remove the rework when checked
           data.reworks.splice(index, 1);
           
           const reworkList = popupEl.querySelector('#reworkList');
@@ -1431,7 +1815,6 @@
       const hasActiveIssue = data.activeIssue && data.activeIssue.problem;
       
       if (hasActiveIssue) {
-        // Show active issue
         return `
           <div class="active-issue-box">
             <h4>⚠️ Active Issue</h4>
@@ -1459,7 +1842,6 @@
           <div id="archiveContainer"></div>
         `;
       } else {
-        // Show create new issue form
         return `
           <div class="popup-form">
             <div class="section-title">Create New Issue</div>
@@ -1489,7 +1871,6 @@
     }
 
     function setupIssueHandlers(popupEl, data, marker) {
-      // Create issue button
       const createBtn = popupEl.querySelector('#createIssueBtn');
       if (createBtn) {
         createBtn.addEventListener('click', () => {
@@ -1510,7 +1891,6 @@
           
           data.status = 'Issue';
           
-          // Update the status dropdown and image if visible
           const statusSelect = popupEl.querySelector('#status');
           if (statusSelect) statusSelect.value = 'Issue';
           const imgEl = popupEl.querySelector('#groomerStatusImg');
@@ -1518,14 +1898,12 @@
           
           marker.setIcon(icons.groomerissues);
           
-          // Re-render issue content
           const issueContent = popupEl.querySelector('#issueContent');
           issueContent.innerHTML = renderIssueContent(data);
           setupIssueHandlers(popupEl, data, marker);
         });
       }
       
-      // Add update button
       const addUpdateBtn = popupEl.querySelector('#addUpdateBtn');
       if (addUpdateBtn) {
         const updateInput = popupEl.querySelector('#newUpdateInput');
@@ -1554,7 +1932,6 @@
         });
       }
       
-      // Resolve issue button
       const resolveBtn = popupEl.querySelector('#resolveIssueBtn');
       if (resolveBtn) {
         resolveBtn.addEventListener('click', () => {
@@ -1585,7 +1962,6 @@
         });
       }
       
-      // Show archive button
       const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
       if (showArchiveBtn) {
         showArchiveBtn.addEventListener('click', () => {
@@ -1680,11 +2056,21 @@
         icon = icons.groomerissues;
       }
       if (markersMap[id]) return;
+      
       const marker = L.marker(latlng, { icon: icon, draggable: true });
       marker.addTo(map);
       marker.options.markerId = id || makeId();
       marker.options.markerType = type;
       markersMap[marker.options.markerId] = marker;
+      
+      // Store marker data for ski area equipment lookup
+      allMarkersData[marker.options.markerId] = {
+        id: marker.options.markerId,
+        type: type,
+        lat: latlng.lat,
+        lng: latlng.lng,
+        data: data
+      };
 
       marker.on('click', () => {
         showCustomPopup(marker, type, data);
@@ -1701,13 +2087,15 @@
 
     async function saveMarker(id, type, latlng, data) {
       try {
-        await setDoc(doc(db, "markers", id), {
+        const markerData = {
           id,
           type,
           lat: latlng.lat,
           lng: latlng.lng,
           data: data || {}
-        });
+        };
+        await setDoc(doc(db, "markers", id), markerData);
+        allMarkersData[id] = markerData;
       } catch (e) {
         console.error("Error saving marker:", e);
       }
@@ -1732,6 +2120,7 @@
         map.removeLayer(markersMap[id]);
       }
       markersMap = {};
+      allMarkersData = {};
       document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
     };
 
@@ -1741,15 +2130,16 @@
       snapshot.forEach((docSnap) => {
         const m = docSnap.data();
         dbIds.add(m.id);
+        allMarkersData[m.id] = m;
         if (!markersMap[m.id]) {
           addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id);
         }
       });
-      // Remove markers not in DB
       for (const id in markersMap) {
         if (!dbIds.has(id)) {
           map.removeLayer(markersMap[id]);
           delete markersMap[id];
+          delete allMarkersData[id];
         }
       }
       applyFilters();
@@ -1760,9 +2150,11 @@
       const showG = document.getElementById('layerGroomer').checked;
       const showC = document.getElementById('layerCharger').checked;
       const showW = document.getElementById('layerWorker').checked;
+      const showS = document.getElementById('layerSkiarea').checked;
       Object.values(markersMap).forEach(m => {
         const type = m.options.markerType;
-        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || (type==='worker' && !showW)) {
+        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || 
+            (type==='worker' && !showW) || (type==='skiarea' && !showS)) {
           map.removeLayer(m);
         } else {
           map.addLayer(m);
@@ -1772,6 +2164,7 @@
     document.getElementById('layerGroomer').addEventListener('change', applyFilters);
     document.getElementById('layerCharger').addEventListener('change', applyFilters);
     document.getElementById('layerWorker').addEventListener('change', applyFilters);
+    document.getElementById('layerSkiarea').addEventListener('change', applyFilters);
 
     // --- Search functionality ---
     let tempMarker = null;
@@ -1780,7 +2173,7 @@
     searchBox.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        searchBox.blur(); // Hide keyboard on mobile
+        searchBox.blur();
         const query = searchBox.value.trim();
         if (!query) return;
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
@@ -1806,7 +2199,7 @@
       }
     });
 
-    // --- Filter button (search within markers) ---
+    // --- Filter button ---
     const filterBtn = document.getElementById('filterBtn');
     let filterActive = false;
     
@@ -1815,7 +2208,6 @@
       filterBtn.classList.toggle('active', filterActive);
       
       if (!filterActive) {
-        // Show all markers again
         Object.values(markersMap).forEach(m => map.addLayer(m));
         applyFilters();
         return;
@@ -1828,12 +2220,12 @@
         return;
       }
       
-      // Hide all, then show matches
       Object.values(markersMap).forEach(m => map.removeLayer(m));
       
       const matches = Object.values(markersMap).filter(m => {
-        const data = m.options.markerData || {};
-        // Search in marker data fields
+        const mData = allMarkersData[m.options.markerId];
+        if (!mData) return false;
+        const data = mData.data || {};
         for (const key in data) {
           const v = data[key];
           if (typeof v === 'string' && v.toLowerCase().includes(q)) return true;
