@@ -2,212 +2,375 @@
 <html>
 <head>
   <title>Xelom Fleet Manager</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Mobile-optimized viewport and PWA meta tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" href="app-icon-black.png" sizes="192x192">
   <link rel="apple-touch-icon" href="app-icon-black.png" sizes="192x192">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
-    body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
-    h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
+    /* Mobile-first base styles */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body { 
+      background: black; 
+      color: white; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+      margin: 0;
+      touch-action: manipulation;
+    }
+    
+    h1 { 
+      margin: 0;
+      padding: 8px 10px;
+      font-weight: 500; 
+      display: flex; 
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 18px;
+      position: relative;
+      z-index: 1001;
+      background: black;
+    }
+    
     h1 span:first-child { color: #ffcc00; }
-    #map { height: 100vh; }
+    
+    #map { 
+      height: calc(100vh - 52px);
+      height: calc(100dvh - 52px); /* Dynamic viewport height for mobile */
+      width: 100%;
+    }
+    
     .search {
-      margin-left: 16px;
-      padding: 6px 10px;
+      padding: 8px 12px;
       border-radius: 6px;
       border: 2px solid #ffcc00;
       background: #121212;
       color: #fff;
-      max-width: 220px;
-      font-size: 16px;
+      font-size: 16px; /* Prevents zoom on iOS */
+      flex: 1;
+      min-width: 100px;
+      max-width: 200px;
     }
+    
     .filter-btn {
-      margin-left: 8px;
-      padding: 7px 18px;
+      padding: 8px 14px;
       border-radius: 6px;
       border: 2px solid #ffcc00;
       background: #222;
       color: #ffcc00;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+      touch-action: manipulation;
     }
+    
     .filter-btn.active {
       background: #ffcc00;
       color: #222;
     }
-    .filter-btn:hover {
+    
+    .filter-btn:hover, .filter-btn:active {
       background: #ffe066;
       color: #222;
     }
+    
     .topbar {
       position: absolute;
-      top: 10px;
+      top: 60px;
       right: 10px;
       display: flex;
-      gap: 12px;
+      gap: 8px;
       z-index: 1000;
     }
+    
     .dropdown {
       position: relative;
     }
-    .dropdown button {
+    
+    .dropdown > button {
       background: #121212;
       border: 2px solid #ffcc00;
       border-radius: 8px;
       color: white;
       padding: 8px;
       cursor: pointer;
-      font-size: 22px;
+      font-size: 20px;
       width: 44px;
       height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
+      touch-action: manipulation;
     }
+    
     .dropdown-menu {
       position: absolute;
       right: 0;
-      top: 44px;
+      top: 48px;
       background: #1e1e1e;
       border: 1px solid #ffcc00;
       border-radius: 8px;
       display: none;
       flex-direction: column;
-      min-width: 200px;
+      min-width: 180px;
       z-index: 1001;
       box-sizing: border-box;
       padding: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
+    
     .dropdown-menu.show { display: flex; }
+    
     .dropdown-menu label, .dropdown-menu button {
-      padding: 10px 16px;
+      padding: 14px 16px;
       border: none;
       background: none;
       color: white;
       text-align: left;
       cursor: pointer;
-      font-size: 15px;
+      font-size: 16px;
       white-space: nowrap;
       width: 100%;
       box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .dropdown-menu label:hover, .dropdown-menu button:hover { background: #333; }
+    
+    .dropdown-menu label:hover, .dropdown-menu button:hover,
+    .dropdown-menu label:active, .dropdown-menu button:active { 
+      background: #333; 
+    }
+    
+    .dropdown-menu input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #ffcc00;
+    }
+    
     .toolbar {
       position: absolute;
-      top: 100px;
+      top: 120px;
       right: 10px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       z-index: 1000;
     }
+    
     .toolbar img {
-      width: 64px; height: 64px;
+      width: 52px; 
+      height: 52px;
       background: #121212;
       border: 2px solid #ffcc00;
-      border-radius: 12px;
+      border-radius: 10px;
       cursor: grab;
       object-fit: contain;
       user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
+    
     .toolbar img:active {
       cursor: grabbing;
+      transform: scale(1.1);
     }
+    
+    /* Custom Popup - Mobile Optimized */
     .custom-popup {
       display: none;
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: #121212;
       color: #f1f1f1;
-      border: 2px solid #ffcc00;
-      border-radius: 12px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.8);
-      min-width: 420px;
-      max-width: 750px;
-      max-height: 90vh;
-      overflow-y: auto;
       z-index: 2000;
-      padding: 24px 32px 24px 24px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
+    
+    @media (min-width: 600px) {
+      .custom-popup {
+        top: 50%;
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%);
+        border: 2px solid #ffcc00;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        min-width: 420px;
+        max-width: 700px;
+        max-height: 90vh;
+        width: auto;
+      }
+    }
+    
+    .popup-inner {
+      padding: 16px;
+      padding-top: 60px;
+      padding-bottom: 100px;
+    }
+    
+    @media (min-width: 600px) {
+      .popup-inner {
+        padding: 24px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+      }
+    }
+    
     .custom-popup .close-btn {
-      position: absolute;
+      position: fixed;
       top: 12px;
       right: 16px;
-      font-size: 28px;
+      font-size: 32px;
       color: #ffcc00;
-      background: none;
-      border: none;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       z-index: 2001;
+      line-height: 1;
+      padding: 0;
     }
+    
+    @media (min-width: 600px) {
+      .custom-popup .close-btn {
+        position: absolute;
+        background: none;
+        border: none;
+        width: auto;
+        height: auto;
+      }
+    }
+    
     .popup-form {
       background: #121212;
       color: #f1f1f1;
       font-size: 15px;
       padding: 0;
       border-radius: 12px;
-      min-width: 420px;
-      max-width: 700px;
       box-sizing: border-box;
       border: none;
     }
+    
     .popup-form label {
       display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
+      margin-top: 12px;
+      margin-bottom: 6px;
       color: #ffcc00;
       font-size: 13px;
       font-weight: 600;
     }
+    
     .popup-form input, .popup-form select, .popup-form textarea {
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      padding: 10px;
+      padding: 12px;
       border-radius: 8px;
       border: 1px solid #333;
       background: #1e1e1e;
       color: #f1f1f1;
-      font-size: 15px;
-      margin-bottom: 6px;
+      font-size: 16px; /* Prevents zoom on iOS */
+      margin-bottom: 8px;
       transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
     }
+    
     .popup-form input:focus, .popup-form select:focus, .popup-form textarea:focus {
       outline: none;
       border-color: #ffcc00;
       box-shadow: 0 0 4px #ffcc00;
     }
+    
+    .popup-form select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
     .popup-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 10px;
+      gap: 10px;
+      margin-top: 16px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: #121212;
+      border-top: 1px solid #333;
+      z-index: 2002;
     }
+    
+    @media (min-width: 600px) {
+      .popup-actions {
+        position: static;
+        padding: 0;
+        background: none;
+        border-top: none;
+      }
+    }
+    
     .btn {
-      padding: 10px;
+      padding: 14px;
       border-radius: 8px;
       border: none;
       font-weight: 600;
       cursor: pointer;
       font-size: 16px;
       transition: background 0.2s;
+      touch-action: manipulation;
     }
+    
     .save-btn { background: #ffcc00; color: black; }
-    .save-btn:hover { background: #ffe066; }
+    .save-btn:hover, .save-btn:active { background: #ffe066; }
     .remove-btn { background: #ef4444; color: white; }
-    .remove-btn:hover { background: #ff6666; }
+    .remove-btn:hover, .remove-btn:active { background: #ff6666; }
+    
     /* Groomer popup custom styles */
     .groomer-popup-flex {
       display: flex;
-      flex-direction: row;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       gap: 16px;
     }
+    
+    @media (min-width: 500px) {
+      .groomer-popup-flex {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+    }
+    
     .groomer-popup-img img {
       width: 80px;
       height: 80px;
@@ -217,146 +380,208 @@
       background: #222;
       display: block;
     }
+    
     .groomer-popup-fields {
       flex: 1;
-      min-width: 200px;
+      width: 100%;
     }
+    
     .groomer-popup-fields label {
       display: block;
-      margin-top: 6px;
-      margin-bottom: 2px;
+      margin-top: 8px;
+      margin-bottom: 4px;
       color: #ffcc00;
       font-size: 13px;
       font-weight: 600;
     }
+    
     .groomer-popup-fields input, .groomer-popup-fields select {
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      padding: 8px;
+      padding: 12px;
       border-radius: 6px;
       border: 1px solid #333;
       background: #1e1e1e;
       color: #f1f1f1;
-      font-size: 15px;
-      margin-bottom: 6px;
+      font-size: 16px;
+      margin-bottom: 8px;
+      -webkit-appearance: none;
+      appearance: none;
     }
+    
+    .groomer-popup-fields select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
     .groomer-popup-details {
       display: flex;
-      flex-direction: row;
-      gap: 16px;
-      margin-top: 10px;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 16px;
     }
+    
+    @media (min-width: 500px) {
+      .groomer-popup-details {
+        flex-direction: row;
+        gap: 16px;
+      }
+    }
+    
     .groomer-popup-details > div {
       flex: 1;
-      min-width: 180px;
     }
+    
     .groomer-popup-details label {
       display: block;
-      margin-top: 6px;
-      margin-bottom: 2px;
+      margin-top: 10px;
+      margin-bottom: 4px;
       color: #ffcc00;
       font-size: 13px;
       font-weight: 600;
     }
+    
     .groomer-popup-details input {
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      padding: 8px;
+      padding: 12px;
       border-radius: 6px;
       border: 1px solid #333;
       background: #1e1e1e;
       color: #f1f1f1;
-      font-size: 15px;
-      margin-bottom: 6px;
+      font-size: 16px;
+      margin-bottom: 8px;
     }
+    
     .groomer-popup-details .address-link,
     .groomer-popup-details .phone-link {
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-size: 14px;
     }
-    /* Tab styles */
+    
+    .groomer-popup-details .address-link a,
+    .groomer-popup-details .phone-link a {
+      display: inline-block;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #4af;
+    }
+    
+    /* Tab styles - Mobile Optimized */
     .groomer-tabs {
       display: flex;
       gap: 0;
       margin-bottom: 16px;
       border-bottom: 2px solid #333;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
+    
     .groomer-tab {
-      padding: 10px 20px;
+      padding: 12px 16px;
       background: #1e1e1e;
       color: #888;
       border: none;
       cursor: pointer;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       border-radius: 8px 8px 0 0;
       transition: all 0.2s;
+      white-space: nowrap;
+      flex: 1;
+      text-align: center;
+      touch-action: manipulation;
     }
-    .groomer-tab:hover {
+    
+    .groomer-tab:hover, .groomer-tab:active {
       background: #2a2a2a;
       color: #ccc;
     }
+    
     .groomer-tab.active {
       background: #ffcc00;
       color: #121212;
     }
+    
     .groomer-tab-content {
       display: none;
     }
+    
     .groomer-tab-content.active {
       display: block;
     }
+    
     /* Rework styles */
     .rework-list {
       margin: 10px 0;
-      max-height: 200px;
+      max-height: 250px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
+    
     .rework-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
+      gap: 12px;
+      padding: 12px;
       background: #1e1e1e;
-      border-radius: 6px;
-      margin-bottom: 6px;
+      border-radius: 8px;
+      margin-bottom: 8px;
       border: 1px solid #333;
     }
+    
     .rework-item input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       cursor: pointer;
       accent-color: #ffcc00;
+      flex-shrink: 0;
     }
+    
     .rework-item span {
       flex: 1;
+      font-size: 15px;
     }
+    
     .rework-item.done {
       text-decoration: line-through;
       opacity: 0.5;
     }
+    
     .add-rework-row {
       display: flex;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
+    
     .add-rework-row input {
       flex: 1;
+      font-size: 16px;
     }
+    
     .add-rework-btn {
       background: #ffcc00;
       color: #121212;
       border: none;
-      padding: 8px 16px;
+      padding: 12px 16px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 15px;
+      touch-action: manipulation;
+      white-space: nowrap;
     }
-    .add-rework-btn:hover {
+    
+    .add-rework-btn:hover, .add-rework-btn:active {
       background: #ffe066;
     }
+    
     /* Issue tracking styles */
     .active-issue-box {
       background: #2a1a1a;
@@ -365,110 +590,142 @@
       padding: 16px;
       margin-bottom: 16px;
     }
+    
     .active-issue-box h4 {
       color: #ef4444;
       margin: 0 0 12px 0;
       font-size: 16px;
     }
+    
     .issue-updates {
       max-height: 200px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       margin: 10px 0;
     }
+    
     .issue-update-item {
       background: #1e1e1e;
       border-left: 3px solid #ffcc00;
-      padding: 8px 12px;
+      padding: 10px 12px;
       margin-bottom: 8px;
       border-radius: 0 6px 6px 0;
     }
+    
     .issue-update-item .update-time {
-      font-size: 11px;
+      font-size: 12px;
       color: #888;
       margin-bottom: 4px;
     }
+    
     .issue-update-item .update-text {
       font-size: 14px;
+      line-height: 1.4;
     }
+    
     .add-update-row {
       display: flex;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
+    
     .add-update-row input {
       flex: 1;
+      font-size: 16px;
     }
+    
     .done-issue-btn {
       background: #22c55e;
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
+      padding: 14px 20px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
-      margin-top: 10px;
+      font-size: 16px;
+      margin-top: 12px;
       width: 100%;
+      touch-action: manipulation;
     }
-    .done-issue-btn:hover {
+    
+    .done-issue-btn:hover, .done-issue-btn:active {
       background: #16a34a;
     }
+    
     .no-issue-msg {
       text-align: center;
       color: #888;
-      padding: 20px;
+      padding: 24px;
       font-style: italic;
     }
+    
     /* Archive styles */
     .archive-btn {
       background: #333;
       color: #ffcc00;
       border: 1px solid #ffcc00;
-      padding: 10px 20px;
-      border-radius: 6px;
+      padding: 14px 20px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 15px;
       margin-top: 16px;
       width: 100%;
+      touch-action: manipulation;
     }
-    .archive-btn:hover {
+    
+    .archive-btn:hover, .archive-btn:active {
       background: #444;
     }
+    
     .archive-list {
       margin-top: 16px;
       max-height: 300px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
+    
     .archive-item {
       background: #1e1e1e;
       border: 1px solid #333;
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
       cursor: pointer;
       transition: border-color 0.2s;
+      touch-action: manipulation;
     }
-    .archive-item:hover {
+    
+    .archive-item:hover, .archive-item:active {
       border-color: #ffcc00;
     }
+    
     .archive-item-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 4px;
     }
+    
     .archive-item-date {
       font-size: 12px;
       color: #888;
     }
+    
     .archive-item-problem {
       font-size: 14px;
       color: #f1f1f1;
+      line-height: 1.4;
     }
+    
     .archive-item-solution {
       font-size: 13px;
       color: #22c55e;
-      margin-top: 4px;
+      margin-top: 6px;
     }
+    
     .archive-detail-view {
       background: #1a1a1a;
       border: 1px solid #ffcc00;
@@ -476,71 +733,136 @@
       padding: 16px;
       margin-top: 10px;
     }
+    
     .archive-detail-view h4 {
       color: #ffcc00;
       margin: 0 0 12px 0;
     }
+    
     .back-btn {
       background: #333;
       color: #fff;
       border: none;
-      padding: 8px 16px;
+      padding: 10px 16px;
       border-radius: 6px;
       cursor: pointer;
       margin-bottom: 12px;
+      font-size: 15px;
+      touch-action: manipulation;
     }
-    .back-btn:hover {
+    
+    .back-btn:hover, .back-btn:active {
       background: #444;
     }
+    
     .software-section label {
       display: block;
-      margin-top: 10px;
-      margin-bottom: 4px;
+      margin-top: 12px;
+      margin-bottom: 6px;
       color: #ffcc00;
       font-size: 13px;
       font-weight: 600;
     }
+    
     .software-section input {
       width: 100%;
       box-sizing: border-box;
-      padding: 10px;
+      padding: 12px;
       border-radius: 8px;
       border: 1px solid #333;
       background: #1e1e1e;
       color: #f1f1f1;
-      font-size: 15px;
-      margin-bottom: 6px;
+      font-size: 16px;
+      margin-bottom: 8px;
     }
+    
     .section-title {
       color: #ffcc00;
       font-size: 14px;
       font-weight: 600;
-      margin-top: 20px;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
       border-bottom: 1px solid #333;
+    }
+    
+    /* Touch-friendly scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    /* Safe area insets for notched phones (iPhone X+) */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      h1 {
+        padding-top: calc(8px + env(safe-area-inset-top));
+      }
+      
+      .custom-popup .close-btn {
+        top: calc(12px + env(safe-area-inset-top));
+      }
+      
+      .popup-inner {
+        padding-top: calc(60px + env(safe-area-inset-top));
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+      }
+      
+      .popup-actions {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+      
+      @media (min-width: 600px) {
+        h1 {
+          padding-top: 8px;
+        }
+        
+        .popup-inner {
+          padding-top: 24px;
+          padding-bottom: 24px;
+        }
+      }
+    }
+    
+    /* Loading state */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
   <h1>
     <span>X</span>elom Fleet Manager
-    <input id="searchBox" class="search" type="text" placeholder="Search…">
+    <input id="searchBox" class="search" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button id="filterBtn" class="filter-btn" type="button">Filter</button>
   </h1>
   <div id="map"></div>
   <div class="topbar">
     <!-- Settings -->
     <div class="dropdown">
-      <button aria-label="Settings" onclick="toggleMenu('settingsMenu')">&#9881;</button>
+      <button aria-label="Settings" id="settingsBtn">&#9881;</button>
       <div class="dropdown-menu" id="settingsMenu">
-        <button onclick="syncMarkers()">Sync</button>
-        <button onclick="removeAllMarkers()">Remove all</button>
+        <button onclick="syncMarkers()">🔄 Sync</button>
+        <button onclick="removeAllMarkers()">🗑️ Remove all</button>
       </div>
     </div>
     <!-- Layers -->
     <div class="dropdown">
-      <button aria-label="Layers" onclick="toggleMenu('layersMenu')">&#9776;</button>
+      <button aria-label="Layers" id="layersBtn">&#9776;</button>
       <div class="dropdown-menu" id="layersMenu">
         <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
         <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
@@ -548,10 +870,10 @@
       </div>
     </div>
   </div>
-  <div class="toolbar">
-    <img src="groomer.png" id="drag-groomer" draggable="true" data-type="groomer" title="Snow Groomer" />
-    <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
-    <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
+  <div class="toolbar" id="toolbar">
+    <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer" />
+    <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger" />
+    <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker" />
   </div>
   <!-- Custom popup (hidden by default) -->
   <div id="customPopup" class="custom-popup">
@@ -604,19 +926,89 @@
     let currentPopupData = null;
     let currentPopupMarker = null;
 
-    // --- Drag and Drop logic ---
+    // --- Mobile Touch Drag and Drop ---
     let dragType = null;
-    document.querySelectorAll('.toolbar img[draggable="true"]').forEach(img => {
+    let touchDragElement = null;
+    let touchDragClone = null;
+    
+    const toolbarImages = document.querySelectorAll('.toolbar img');
+    
+    // Desktop drag and drop
+    toolbarImages.forEach(img => {
+      img.setAttribute('draggable', 'true');
+      
       img.addEventListener('dragstart', e => {
         dragType = img.getAttribute('data-type');
         e.dataTransfer.setData('text/plain', dragType);
       });
+      
       img.addEventListener('dragend', e => {
         dragType = null;
       });
+      
+      // Mobile touch drag
+      img.addEventListener('touchstart', e => {
+        e.preventDefault();
+        touchDragElement = img;
+        dragType = img.getAttribute('data-type');
+        
+        // Create a clone for visual feedback
+        touchDragClone = img.cloneNode(true);
+        touchDragClone.style.position = 'fixed';
+        touchDragClone.style.pointerEvents = 'none';
+        touchDragClone.style.zIndex = '9999';
+        touchDragClone.style.opacity = '0.8';
+        touchDragClone.style.transform = 'scale(1.2)';
+        document.body.appendChild(touchDragClone);
+        
+        const touch = e.touches[0];
+        touchDragClone.style.left = (touch.clientX - 26) + 'px';
+        touchDragClone.style.top = (touch.clientY - 26) + 'px';
+      }, { passive: false });
+      
+      img.addEventListener('touchmove', e => {
+        if (!touchDragClone) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchDragClone.style.left = (touch.clientX - 26) + 'px';
+        touchDragClone.style.top = (touch.clientY - 26) + 'px';
+      }, { passive: false });
+      
+      img.addEventListener('touchend', e => {
+        if (!touchDragClone || !dragType) {
+          cleanupTouchDrag();
+          return;
+        }
+        
+        const touch = e.changedTouches[0];
+        const mapDiv = document.getElementById('map');
+        const rect = mapDiv.getBoundingClientRect();
+        
+        // Check if dropped on map
+        if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+            touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          const x = touch.clientX - rect.left;
+          const y = touch.clientY - rect.top;
+          const latlng = map.containerPointToLatLng([x, y]);
+          addMarker(dragType, latlng, {}, makeId(), true);
+        }
+        
+        cleanupTouchDrag();
+      });
+      
+      img.addEventListener('touchcancel', cleanupTouchDrag);
     });
+    
+    function cleanupTouchDrag() {
+      if (touchDragClone && touchDragClone.parentNode) {
+        touchDragClone.parentNode.removeChild(touchDragClone);
+      }
+      touchDragClone = null;
+      touchDragElement = null;
+      dragType = null;
+    }
 
-    // Prevent default dragover on map container
+    // Desktop drop on map
     const mapDiv = document.getElementById('map');
     mapDiv.addEventListener('dragover', function(e) {
       e.preventDefault();
@@ -633,12 +1025,59 @@
       dragType = null;
     });
 
+    // --- Dropdown menu handling (touch-friendly) ---
+    function toggleMenu(menuId) {
+      const menu = document.getElementById(menuId);
+      const wasOpen = menu.classList.contains('show');
+      
+      // Close all menus first
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      
+      // Toggle the clicked menu
+      if (!wasOpen) {
+        menu.classList.add('show');
+      }
+    }
+    
+    // Make toggleMenu available globally
+    window.toggleMenu = toggleMenu;
+    
+    // Button click handlers
+    document.getElementById('settingsBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu('settingsMenu');
+    });
+    
+    document.getElementById('layersBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu('layersMenu');
+    });
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+    
+    // Prevent menu from closing when clicking inside it
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+      menu.addEventListener('click', (e) => {
+        // Don't stop propagation for buttons (let them close the menu after action)
+        if (e.target.tagName !== 'BUTTON') {
+          e.stopPropagation();
+        }
+      });
+    });
+
     // --- Custom Popup Logic ---
     window.closeCustomPopup = function() {
       document.getElementById('customPopup').style.display = 'none';
       document.getElementById('customPopupContent').innerHTML = '';
       currentPopupMarker = null;
       currentPopupData = null;
+      // Re-enable body scroll on mobile
+      document.body.style.overflow = '';
     };
 
     function formatDateTime(date) {
@@ -652,6 +1091,9 @@
       currentPopupMarker = marker;
       currentPopupData = data;
       
+      // Disable body scroll on mobile
+      document.body.style.overflow = 'hidden';
+      
       let formHtml = '';
       if (type === 'groomer') {
         // Initialize data structures if not present
@@ -664,7 +1106,7 @@
         const imgSrc = status === "Issue" ? "groomerissues.png" : "groomer.png";
         
         formHtml = `
-          <div>
+          <div class="popup-inner">
             <!-- Tabs -->
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
@@ -672,7 +1114,7 @@
               <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
-            <!-- Tab 1: General (existing content) -->
+            <!-- Tab 1: General -->
             <div class="groomer-tab-content active" id="tab-general">
               <div class="groomer-popup-flex">
                 <div class="groomer-popup-img">
@@ -766,7 +1208,7 @@
       }
       if (type === 'charger') {
         formHtml = `
-          <div class="popup-form">
+          <div class="popup-inner popup-form">
             <label>Power</label>
             <select id="power">
               <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
@@ -784,7 +1226,7 @@
       }
       if (type === 'worker') {
         formHtml = `
-          <div class="popup-form">
+          <div class="popup-inner popup-form">
             <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
             <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
             <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
@@ -844,7 +1286,7 @@
           const setLink = (address) => {
             if (address) {
               const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
-              linkDiv.innerHTML = `<a href="${url}" target="_blank" style="color:#4af;">Open in Google Maps</a>`;
+              linkDiv.innerHTML = `<a href="${url}" target="_blank">📍 Open in Maps</a>`;
             } else {
               linkDiv.innerHTML = "";
             }
@@ -863,7 +1305,7 @@
           const setLink = (phone) => {
             const clean = phone.replace(/[^+\d]/g, '');
             if (clean) {
-              linkDiv.innerHTML = `<a href="tel:${clean}" style="color:#4af;">Call</a>`;
+              linkDiv.innerHTML = `<a href="tel:${clean}">📞 Call</a>`;
             } else {
               linkDiv.innerHTML = "";
             }
@@ -882,7 +1324,7 @@
       if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
           // Collect general fields
-          const generalInputs = popupEl.querySelectorAll('#tab-general input, #tab-general select');
+          const generalInputs = popupEl.querySelectorAll('#tab-general input, #tab-general select, .popup-form input, .popup-form select');
           const values = {};
           generalInputs.forEach(i => {
             if (i.id) values[i.id] = i.value;
@@ -916,10 +1358,12 @@
       }
       if (removeBtn) {
         removeBtn.addEventListener('click', async () => {
-          await removeMarker(marker.options.markerId);
-          map.removeLayer(marker);
-          delete markersMap[marker.options.markerId];
-          closeCustomPopup();
+          if (confirm('Are you sure you want to remove this marker?')) {
+            await removeMarker(marker.options.markerId);
+            map.removeLayer(marker);
+            delete markersMap[marker.options.markerId];
+            closeCustomPopup();
+          }
         });
       }
     }
@@ -958,6 +1402,7 @@
         
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
+            e.preventDefault();
             addBtn.click();
           }
         });
@@ -1002,44 +1447,28 @@
             <div class="issue-updates" id="issueUpdates">
               ${renderIssueUpdates(data.activeIssue.updates || [])}
             </div>
-            
             <div class="add-update-row">
-              <input type="text" id="newUpdateInput" placeholder="Add update (e.g., R&D working on solution...)">
+              <input type="text" id="newUpdateInput" placeholder="Add update...">
               <button class="add-rework-btn" id="addUpdateBtn">Add</button>
             </div>
             
-            <div style="margin-top: 16px;">
-              <label style="color: #ffcc00; font-size: 13px; font-weight: 600;">Solution / What was the problem:</label>
-              <textarea id="issueSolution" rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px; resize: vertical;">${escapeHtml(data.activeIssue.solution || '')}</textarea>
-            </div>
-            
-            <button class="done-issue-btn" id="doneIssueBtn">✓ Mark as Done & Archive</button>
+            <button class="done-issue-btn" id="resolveIssueBtn">✓ Mark as Resolved</button>
           </div>
           
           <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
           <div id="archiveContainer"></div>
         `;
       } else {
-        // No active issue - show form to create one
-        const statusIsIssue = data.status === 'Issue';
+        // Show create new issue form
         return `
-          ${statusIsIssue ? `
-            <div class="active-issue-box" style="border-color: #ffcc00; background: #1a1a0a;">
-              <h4 style="color: #ffcc00;">Create New Issue Report</h4>
-              <label style="color: #ffcc00; font-size: 13px; font-weight: 600;">Problem Description:</label>
-              <textarea id="newIssueProblem" rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px; resize: vertical;" placeholder="Describe the problem..."></textarea>
-              
-              <label style="color: #ffcc00; font-size: 13px; font-weight: 600; margin-top: 10px; display: block;">Responsible Person:</label>
-              <input type="text" id="newIssueResponsible" placeholder="Who is responsible?" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #f1f1f1; font-size: 14px;">
-              
-              <button class="add-rework-btn" style="width: 100%; margin-top: 12px;" id="createIssueBtn">Create Issue</button>
-            </div>
-          ` : `
-            <div class="no-issue-msg">
-              <p>No active issues</p>
-              <p style="font-size: 13px; margin-top: 8px;">Set status to "Issue" to report a problem</p>
-            </div>
-          `}
+          <div class="popup-form">
+            <div class="section-title">Create New Issue</div>
+            <label>Problem Description</label>
+            <textarea id="newIssueProblem" rows="3" placeholder="Describe the issue..."></textarea>
+            <label>Responsible Person</label>
+            <input type="text" id="newIssueResponsible" placeholder="Who is handling this?">
+            <button class="btn save-btn" id="createIssueBtn" style="width: 100%; margin-top: 12px;">Create Issue</button>
+          </div>
           
           <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
           <div id="archiveContainer"></div>
@@ -1049,25 +1478,23 @@
 
     function renderIssueUpdates(updates) {
       if (!updates || updates.length === 0) {
-        return '<div class="no-issue-msg" style="padding: 10px;">No updates yet</div>';
+        return '<div class="no-issue-msg" style="padding: 12px;">No updates yet</div>';
       }
       return updates.map(update => `
         <div class="issue-update-item">
-          <div class="update-time">${formatDateTime(update.timestamp)}</div>
+          <div class="update-time">${formatDateTime(update.time)}</div>
           <div class="update-text">${escapeHtml(update.text)}</div>
         </div>
       `).join('');
     }
 
     function setupIssueHandlers(popupEl, data, marker) {
-      // Create new issue
-      const createIssueBtn = popupEl.querySelector('#createIssueBtn');
-      if (createIssueBtn) {
-        createIssueBtn.addEventListener('click', () => {
-          const problemInput = popupEl.querySelector('#newIssueProblem');
-          const responsibleInput = popupEl.querySelector('#newIssueResponsible');
-          const problem = problemInput?.value.trim();
-          const responsible = responsibleInput?.value.trim();
+      // Create issue button
+      const createBtn = popupEl.querySelector('#createIssueBtn');
+      if (createBtn) {
+        createBtn.addEventListener('click', () => {
+          const problem = popupEl.querySelector('#newIssueProblem')?.value.trim();
+          const responsible = popupEl.querySelector('#newIssueResponsible')?.value.trim();
           
           if (!problem) {
             alert('Please describe the problem');
@@ -1078,9 +1505,18 @@
             problem: problem,
             responsible: responsible,
             createdAt: new Date().toISOString(),
-            updates: [],
-            solution: ''
+            updates: []
           };
+          
+          data.status = 'Issue';
+          
+          // Update the status dropdown and image if visible
+          const statusSelect = popupEl.querySelector('#status');
+          if (statusSelect) statusSelect.value = 'Issue';
+          const imgEl = popupEl.querySelector('#groomerStatusImg');
+          if (imgEl) imgEl.src = 'groomerissues.png';
+          
+          marker.setIcon(icons.groomerissues);
           
           // Re-render issue content
           const issueContent = popupEl.querySelector('#issueContent');
@@ -1089,69 +1525,58 @@
         });
       }
       
-      // Add update to active issue
+      // Add update button
       const addUpdateBtn = popupEl.querySelector('#addUpdateBtn');
       if (addUpdateBtn) {
+        const updateInput = popupEl.querySelector('#newUpdateInput');
+        
         addUpdateBtn.addEventListener('click', () => {
-          const input = popupEl.querySelector('#newUpdateInput');
-          const text = input?.value.trim();
+          const text = updateInput?.value.trim();
           if (!text) return;
           
           data.activeIssue.updates = data.activeIssue.updates || [];
           data.activeIssue.updates.push({
-            text: text,
-            timestamp: new Date().toISOString()
+            time: new Date().toISOString(),
+            text: text
           });
           
-          input.value = '';
+          updateInput.value = '';
           
           const updatesContainer = popupEl.querySelector('#issueUpdates');
           updatesContainer.innerHTML = renderIssueUpdates(data.activeIssue.updates);
         });
         
-        const input = popupEl.querySelector('#newUpdateInput');
-        if (input) {
-          input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              addUpdateBtn.click();
-            }
-          });
-        }
+        updateInput?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addUpdateBtn.click();
+          }
+        });
       }
       
-      // Done issue - archive and reset
-      const doneIssueBtn = popupEl.querySelector('#doneIssueBtn');
-      if (doneIssueBtn) {
-        doneIssueBtn.addEventListener('click', async () => {
-          const solutionInput = popupEl.querySelector('#issueSolution');
-          const solution = solutionInput?.value.trim();
+      // Resolve issue button
+      const resolveBtn = popupEl.querySelector('#resolveIssueBtn');
+      if (resolveBtn) {
+        resolveBtn.addEventListener('click', () => {
+          const solution = prompt('Enter the solution or resolution:');
+          if (!solution) return;
           
-          if (!solution) {
-            alert('Please enter the solution / what the problem was before closing');
-            return;
-          }
-          
-          // Archive the issue
           data.activeIssue.solution = solution;
           data.activeIssue.resolvedAt = new Date().toISOString();
           
           data.archivedIssues = data.archivedIssues || [];
-          data.archivedIssues.unshift(data.activeIssue); // Add to beginning
+          data.archivedIssues.unshift(data.activeIssue);
           
-          // Clear active issue
           data.activeIssue = null;
-          
-          // Set status back to Working
           data.status = 'Working';
+          
           const statusSelect = popupEl.querySelector('#status');
           if (statusSelect) statusSelect.value = 'Working';
           const imgEl = popupEl.querySelector('#groomerStatusImg');
           if (imgEl) imgEl.src = 'groomer.png';
           
-          // Update marker icon
           marker.setIcon(icons.groomer);
           
-          // Re-render issue content
           const issueContent = popupEl.querySelector('#issueContent');
           issueContent.innerHTML = renderIssueContent(data);
           setupIssueHandlers(popupEl, data, marker);
@@ -1160,7 +1585,7 @@
         });
       }
       
-      // Show archive
+      // Show archive button
       const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
       if (showArchiveBtn) {
         showArchiveBtn.addEventListener('click', () => {
@@ -1207,7 +1632,7 @@
           const container = popupEl.querySelector('#archiveContainer');
           container.innerHTML = `
             <div class="archive-detail-view">
-              <button class="back-btn" id="backToArchiveList">← Back to list</button>
+              <button class="back-btn" id="backToArchiveList">← Back</button>
               <h4>Issue Details</h4>
               <div style="margin-bottom: 12px;">
                 <strong>Problem:</strong><br>
@@ -1233,8 +1658,7 @@
             </div>
           `;
           
-          const backBtn = popupEl.querySelector('#backToArchiveList');
-          backBtn.addEventListener('click', () => {
+          popupEl.querySelector('#backToArchiveList').addEventListener('click', () => {
             container.innerHTML = renderArchiveList(data.archivedIssues);
             setupArchiveItemHandlers(popupEl, data);
           });
@@ -1249,13 +1673,13 @@
       return div.innerHTML;
     }
 
-    // --- ADD MARKER ---
+    // --- Marker Management ---
     function addMarker(type, latlng, data={}, id, saveToDb=false) {
       let icon = icons[type];
       if (type === 'groomer' && data.status === 'Issue') {
         icon = icons.groomerissues;
       }
-      if (markersMap[id]) return; // Prevent duplicate
+      if (markersMap[id]) return;
       const marker = L.marker(latlng, { icon: icon, draggable: true });
       marker.addTo(map);
       marker.options.markerId = id || makeId();
@@ -1266,85 +1690,72 @@
         showCustomPopup(marker, type, data);
       });
 
-      // Save initial marker (if not already present)
-      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
-
-      // Update saved position on drag
-      marker.on('dragend', async ev => {
-        const pos = ev.target.getLatLng();
-        await updateMarkerPosition(marker.options.markerId, pos);
+      marker.on('dragend', async () => {
+        await saveMarker(marker.options.markerId, type, marker.getLatLng(), data);
       });
+
+      if (saveToDb) {
+        saveMarker(marker.options.markerId, type, latlng, data);
+      }
     }
 
-    // --- Firestore marker functions ---
     async function saveMarker(id, type, latlng, data) {
-      await setDoc(doc(db, "markers", id), {
-        id, type, lat: latlng.lat, lng: latlng.lng, data
-      });
-    }
-
-    async function updateMarkerPosition(id, latlng) {
-      const markerDoc = doc(db, "markers", id);
-      await setDoc(markerDoc, {
-        ...(allMarkers.find(m => m.id === id) || {}),
-        id,
-        lat: latlng.lat,
-        lng: latlng.lng
-      }, { merge: true });
+      try {
+        await setDoc(doc(db, "markers", id), {
+          id,
+          type,
+          lat: latlng.lat,
+          lng: latlng.lng,
+          data: data || {}
+        });
+      } catch (e) {
+        console.error("Error saving marker:", e);
+      }
     }
 
     async function removeMarker(id) {
-      await deleteDoc(doc(db, "markers", id));
+      try {
+        await deleteDoc(doc(db, "markers", id));
+      } catch (e) {
+        console.error("Error removing marker:", e);
+      }
     }
 
-    // --- Real-time sync with Firestore ---
-    function refreshMarkersFromFirestore() {
-      onSnapshot(collection(db, "markers"), (snapshot) => {
-        // Remove all current markers
-        Object.values(markersMap).forEach(m => map.removeLayer(m));
-        markersMap = {};
-        allMarkers = [];
-        snapshot.forEach(docSnap => {
-          const m = docSnap.data();
-          allMarkers.push(m);
-        });
-        // Show all markers by default (no filtering here)
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
-        applyFilters();
-      });
-    }
-    refreshMarkersFromFirestore();
-
-    // --- Settings menu actions ---
     window.syncMarkers = function() {
-      alert("Synced!");
-    };
-    window.removeAllMarkers = function() {
-      const pw = prompt("Enter password to remove all machines:");
-      if (pw !== "1111") {
-        alert("Incorrect password.");
-        return;
-      }
-      allMarkers.forEach(m => removeMarker(m.id));
-      alert("All machines removed.");
+      location.reload();
     };
 
-    // --- Dropdown toggle ---
-    window.toggleMenu = function(id) {
-      document.querySelectorAll('.dropdown-menu').forEach(m => {
-        if (m.id === id) m.classList.toggle('show');
-        else m.classList.remove('show');
-      });
-    };
-    document.addEventListener('click', (e) => {
-      const hitDropdown = e.target.closest('.dropdown');
-      const hitButton = e.target.closest('.dropdown > button');
-      if (!hitDropdown && !hitButton) {
-        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    window.removeAllMarkers = async function() {
+      if (!confirm('Are you sure you want to remove ALL markers? This cannot be undone.')) return;
+      for (const id in markersMap) {
+        await removeMarker(id);
+        map.removeLayer(markersMap[id]);
       }
+      markersMap = {};
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    };
+
+    // --- Realtime sync from Firebase ---
+    onSnapshot(collection(db, "markers"), (snapshot) => {
+      const dbIds = new Set();
+      snapshot.forEach((docSnap) => {
+        const m = docSnap.data();
+        dbIds.add(m.id);
+        if (!markersMap[m.id]) {
+          addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id);
+        }
+      });
+      // Remove markers not in DB
+      for (const id in markersMap) {
+        if (!dbIds.has(id)) {
+          map.removeLayer(markersMap[id]);
+          delete markersMap[id];
+        }
+      }
+      applyFilters();
     });
 
-    // --- Layers filtering ---
+    // --- Layer Filters ---
     function applyFilters() {
       const showG = document.getElementById('layerGroomer').checked;
       const showC = document.getElementById('layerCharger').checked;
@@ -1362,16 +1773,16 @@
     document.getElementById('layerCharger').addEventListener('change', applyFilters);
     document.getElementById('layerWorker').addEventListener('change', applyFilters);
 
-    // --- Temporary marker for geocode search ---
+    // --- Search functionality ---
     let tempMarker = null;
 
-    // --- Geocode search and zoom (no filtering) ---
     const searchBox = document.getElementById('searchBox');
     searchBox.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
+        e.preventDefault();
+        searchBox.blur(); // Hide keyboard on mobile
         const query = searchBox.value.trim();
         if (!query) return;
-        // Call Nominatim API
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
         const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
         const results = await resp.json();
@@ -1380,15 +1791,11 @@
           const lon = parseFloat(results[0].lon);
           map.setView([lat, lon], 16);
 
-          // Remove previous temp marker
           if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
-          // Add temporary marker
           tempMarker = L.marker([lat, lon], {
             icon: L.icon({
               iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-              iconSize: [25, 41],
-              iconAnchor: [12, 41],
-              popupAnchor: [1, -34],
+              iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
               shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
               shadowSize: [41, 41]
             })
@@ -1399,55 +1806,54 @@
       }
     });
 
-    // Remove temp marker if search bar input changes
-    searchBox.addEventListener('input', () => {
-      if (tempMarker) {
-        map.removeLayer(tempMarker);
-        tempMarker = null;
-      }
-    });
-
-    // --- Filter button for marker info search (toggle) ---
+    // --- Filter button (search within markers) ---
     const filterBtn = document.getElementById('filterBtn');
     let filterActive = false;
+    
     filterBtn.addEventListener('click', () => {
       filterActive = !filterActive;
       filterBtn.classList.toggle('active', filterActive);
-
-      // Remove all markers from the map and from markersMap
-      Object.values(markersMap).forEach(m => map.removeLayer(m));
-      markersMap = {};
-
+      
       if (!filterActive) {
-        // Show all markers
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        // Show all markers again
+        Object.values(markersMap).forEach(m => map.addLayer(m));
+        applyFilters();
         return;
       }
-
-      // Otherwise, filter and show only matches
+      
       const q = searchBox.value.trim().toLowerCase();
       if (!q) {
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        filterActive = false;
+        filterBtn.classList.remove('active');
         return;
       }
-      const matches = allMarkers.filter(m => {
-        if (String(m.id).toLowerCase().includes(q)) return true;
-        if (String(m.type).toLowerCase().includes(q)) return true;
-        if (m.data) {
-          for (const v of Object.values(m.data)) {
-            if (String(v).toLowerCase().includes(q)) return true;
+      
+      // Hide all, then show matches
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      
+      const matches = Object.values(markersMap).filter(m => {
+        const data = m.options.markerData || {};
+        // Search in marker data fields
+        for (const key in data) {
+          const v = data[key];
+          if (typeof v === 'string' && v.toLowerCase().includes(q)) return true;
+          if (typeof v === 'object' && v !== null) {
+            for (const subKey in v) {
+              if (String(v[subKey]).toLowerCase().includes(q)) return true;
+            }
           }
         }
         return false;
       });
-      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+      
+      matches.forEach(m => map.addLayer(m));
     });
 
-    // --- Service Worker registration for PWA ---
+    // --- Service Worker for PWA ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('sw.js').then(function(registration) {
-          // Registration successful
+          console.log('ServiceWorker registered');
         }, function(err) {
           console.log('ServiceWorker registration failed: ', err);
         });
