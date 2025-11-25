@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Xelom Fleet Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="app-icon-black.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="app-icon-black.png" sizes="192x192">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    body { background: black; color: white; font-family: Roboto, Arial, sans-serif; margin:0; }
+    h1 { margin: 10px; font-weight: 500; display: flex; align-items: center; }
+    h1 span:first-child { color: #ffcc00; }
+    #map { height: 100vh; }
+    .search {
+      margin-left: 16px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #121212;
+      color: #fff;
+      max-width: 220px;
+      font-size: 16px;
+    }
+    .filter-btn {
+      margin-left: 8px;
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      color: #ffcc00;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .filter-btn.active {
+      background: #ffcc00;
+      color: #222;
+    }
+    .filter-btn:hover {
+      background: #ffe066;
+      color: #222;
+    }
+    .topbar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 12px;
+      z-index: 1000;
+    }
+    .dropdown {
+      position: relative;
+    }
+    .dropdown button {
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      color: white;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 22px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 44px;
+      background: #1e1e1e;
+      border: 1px solid #ffcc00;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      min-width: 200px;
+      z-index: 1001;
+      box-sizing: border-box;
+      padding: 0;
+    }
+    .dropdown-menu.show { display: flex; }
+    .dropdown-menu label, .dropdown-menu button {
+      padding: 10px 16px;
+      border: none;
+      background: none;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+      font-size: 15px;
+      white-space: nowrap;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .dropdown-menu label:hover, .dropdown-menu button:hover { background: #333; }
+    .toolbar {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toolbar img {
+      width: 64px; height: 64px;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      cursor: grab;
+      object-fit: contain;
+      user-select: none;
+    }
+    .toolbar img:active {
+      cursor: grabbing;
+    }
+    .custom-popup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #121212;
+      color: #f1f1f1;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.8);
+      min-width: 420px;
+      max-width: 700px;
+      z-index: 2000;
+      padding: 24px 32px 24px 24px;
+    }
+    .custom-popup .close-btn {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-size: 28px;
+      color: #ffcc00;
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 2001;
+    }
+    .popup-form {
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      padding: 0;
+      border-radius: 12px;
+      min-width: 420px;
+      max-width: 700px;
+      box-sizing: border-box;
+      border: none;
+    }
+    .popup-form label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .popup-form input, .popup-form select {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+      transition: border-color 0.2s;
+    }
+    .popup-form input:focus, .popup-form select:focus {
+      outline: none;
+      border-color: #ffcc00;
+      box-shadow: 0 0 4px #ffcc00;
+    }
+    .popup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+    .save-btn { background: #ffcc00; color: black; }
+    .save-btn:hover { background: #ffe066; }
+    .remove-btn { background: #ef4444; color: white; }
+    .remove-btn:hover { background: #ff6666; }
+    /* Groomer popup custom styles */
+    .groomer-popup-flex {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .groomer-popup-img img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 2px solid #ffcc00;
+      background: #222;
+      display: block;
+    }
+    .groomer-popup-fields {
+      flex: 1;
+      min-width: 200px;
+    }
+    .groomer-popup-fields label {
+      display: block;
+      margin-top: 6px;
+      margin-bottom: 2px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .groomer-popup-fields input, .groomer-popup-fields select {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .groomer-popup-details {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .groomer-popup-details > div {
+      flex: 1;
+      min-width: 180px;
+    }
+    .groomer-popup-details label {
+      display: block;
+      margin-top: 6px;
+      margin-bottom: 2px;
+      color: #ffcc00;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .groomer-popup-details input {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .groomer-popup-details .address-link,
+    .groomer-popup-details .phone-link {
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <span>X</span>elom Fleet Manager
+    <input id="searchBox" class="search" type="text" placeholder="Search…">
+    <button id="filterBtn" class="filter-btn" type="button">Filter</button>
+  </h1>
+  <div id="map"></div>
+  <div class="topbar">
+    <!-- Settings -->
+    <div class="dropdown">
+      <button aria-label="Settings" onclick="toggleMenu('settingsMenu')">&#9881;</button>
+      <div class="dropdown-menu" id="settingsMenu">
+        <button onclick="syncMarkers()">Sync</button>
+        <button onclick="removeAllMarkers()">Remove all</button>
+      </div>
+    </div>
+    <!-- Layers -->
+    <div class="dropdown">
+      <button aria-label="Layers" onclick="toggleMenu('layersMenu')">&#9776;</button>
+      <div class="dropdown-menu" id="layersMenu">
+        <label><input type="checkbox" id="layerGroomer" checked> Groomers</label>
+        <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
+        <label><input type="checkbox" id="layerWorker" checked> Workers</label>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <img src="groomer.png" id="drag-groomer" draggable="true" data-type="groomer" title="Snow Groomer" />
+    <img src="charger.png" id="drag-charger" draggable="true" data-type="charger" title="EV Charger" />
+    <img src="van.png" id="drag-worker" draggable="true" data-type="worker" title="Work Van" />
+  </div>
+  <!-- Custom popup (hidden by default) -->
+  <div id="customPopup" class="custom-popup">
+    <button class="close-btn" onclick="closeCustomPopup()">&times;</button>
+    <div id="customPopupContent"></div>
+  </div>
+  <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.appspot.com",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- ICONS ---
+    const icons = {
+      groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      worker: L.icon({ iconUrl: 'van.png',     iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
+    };
+
+    function makeId() {
+      return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // --- Map initialization ---
+    const map = L.map('map').setView([46.5, 11.3], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker registry
+    let markersMap = {}; // id -> marker
+    let allMarkers = []; // for search/filter
+
+    // --- Drag and Drop logic ---
+    let dragType = null;
+    document.querySelectorAll('.toolbar img[draggable="true"]').forEach(img => {
+      img.addEventListener('dragstart', e => {
+        dragType = img.getAttribute('data-type');
+        e.dataTransfer.setData('text/plain', dragType);
+      });
+      img.addEventListener('dragend', e => {
+        dragType = null;
+      });
+    });
+
+    // Prevent default dragover on map container
+    const mapDiv = document.getElementById('map');
+    mapDiv.addEventListener('dragover', function(e) {
+      e.preventDefault();
+    });
+
+    mapDiv.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragType) return;
+      const rect = mapDiv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const latlng = map.containerPointToLatLng([x, y]);
+      addMarker(dragType, latlng, {}, makeId(), true);
+      dragType = null;
+    });
+
+    // --- Custom Popup Logic ---
+    let currentPopupMarker = null;
+    window.closeCustomPopup = function() {
+      document.getElementById('customPopup').style.display = 'none';
+      document.getElementById('customPopupContent').innerHTML = '';
+      currentPopupMarker = null;
+    };
+
+    function showCustomPopup(marker, type, data) {
+      let formHtml = '';
+      if (type === 'groomer') {
+        const status = data.status || "Working";
+        const imgSrc = status === "Issue" ? "groomerissues.png" : "groomer.png";
+        formHtml = `
+          <div>
+            <div class="groomer-popup-flex">
+              <div class="groomer-popup-img">
+                <img id="groomerStatusImg" src="${imgSrc}" alt="Groomer" />
+              </div>
+              <div class="groomer-popup-fields">
+                <label>Serial Number</label><input id="serial" value="${data.serial||""}">
+                <label>Size</label>
+                <select id="size">
+                  <option ${data.size==="280"?"selected":""}>280</option>
+                  <option ${data.size==="320"?"selected":""}>320</option>
+                  <option ${data.size==="250"?"selected":""}>250</option>
+                </select>
+                <label>Blade Serial</label><input id="blade" value="${data.blade||""}">
+                <label>Tiller Serial</label><input id="tiller" value="${data.tiller||""}">
+                <label>Status</label>
+                <select id="status">
+                  <option ${status==="Working"?"selected":""}>Working</option>
+                  <option ${status==="Issue"?"selected":""}>Issue</option>
+                </select>
+              </div>
+            </div>
+            <div class="groomer-popup-details">
+              <div>
+                <label>Responsible</label>
+                <input id="responsibleName" placeholder="Name" value="${data.responsibleName||""}">
+                <input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||""}">
+                <div id="responsiblePhoneLink" class="phone-link"></div>
+                <label>Driver</label>
+                <input id="driverName" placeholder="Name" value="${data.driverName||""}">
+                <input id="driverPhone" placeholder="Phone" value="${data.driverPhone||""}">
+                <div id="driverPhoneLink" class="phone-link"></div>
+                <label>Mechanic</label>
+                <input id="mechanicName" placeholder="Name" value="${data.mechanicName||""}">
+                <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
+                <div id="mechanicPhoneLink" class="phone-link"></div>
+              </div>
+              <div>
+                <label>Ski Area Name</label>
+                <input id="skiAreaName" value="${data.skiAreaName||""}">
+                <label>Address</label>
+                <input id="skiAreaAddress" value="${data.skiAreaAddress||""}">
+                <div id="skiAreaAddressLink" class="address-link"></div>
+                <label>Hotel Name</label>
+                <input id="hotelName" value="${data.hotelName||""}">
+                <label>Hotel Address</label>
+                <input id="hotelAddress" value="${data.hotelAddress||""}">
+                <div id="hotelAddressLink" class="address-link"></div>
+              </div>
+            </div>
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>
+        `;
+      }
+      if (type === 'charger') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Power</label>
+            <select id="power">
+              <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
+              <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
+              <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
+            </select>
+            <label>Serial</label><input id="serial" value="${data.serial||""}">
+            <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
+            <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      if (type === 'worker') {
+        formHtml = `
+          <div class="popup-form">
+            <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
+            <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
+            <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
+            <label>Day Present</label><input type="date" id="day" value="${data.day||""}">
+            <label>Planned End</label><input type="date" id="end" value="${data.end||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      document.getElementById('customPopupContent').innerHTML = formHtml;
+      document.getElementById('customPopup').style.display = 'block';
+
+      // Add logic for address/phone links and image update for groomer
+      const popupEl = document.getElementById('customPopupContent');
+      const statusSelect = popupEl.querySelector('#status');
+      const imgEl = popupEl.querySelector('#groomerStatusImg');
+      if (statusSelect && imgEl) {
+        statusSelect.addEventListener('change', () => {
+          imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
+        });
+      }
+      function updateAddressLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (address) => {
+            if (address) {
+              const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
+              linkDiv.innerHTML = `<a href="${url}" target="_blank" style="color:#4af;">Open in Google Maps</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
+      updateAddressLink('hotelAddress', 'hotelAddressLink');
+      function updatePhoneLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (phone) => {
+            const clean = phone.replace(/[^+\d]/g, '');
+            if (clean) {
+              linkDiv.innerHTML = `<a href="tel:${clean}" style="color:#4af;">Call</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
+      updatePhoneLink('driverPhone', 'driverPhoneLink');
+      updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+
+      // Save/Remove logic
+      const saveBtn = popupEl.querySelector('#saveBtn');
+      const removeBtn = popupEl.querySelector('#removeBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+          const inputs = popupEl.querySelectorAll('input, select');
+          const values = {};
+          inputs.forEach(i => values[i.id] = i.value);
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+          if (marker.options.markerType === 'groomer') {
+            if (values.status === 'Issue') {
+              marker.setIcon(icons.groomerissues);
+            } else {
+              marker.setIcon(icons.groomer);
+            }
+          }
+          alert('Saved!');
+          closeCustomPopup();
+        });
+      }
+      if (removeBtn) {
+        removeBtn.addEventListener('click', async () => {
+          await removeMarker(marker.options.markerId);
+          map.removeLayer(marker);
+          delete markersMap[marker.options.markerId];
+          closeCustomPopup();
+        });
+      }
+    }
+
+    // --- ADD MARKER ---
+    function addMarker(type, latlng, data={}, id, saveToDb=false) {
+      let icon = icons[type];
+      if (type === 'groomer' && data.status === 'Issue') {
+        icon = icons.groomerissues;
+      }
+      if (markersMap[id]) return; // Prevent duplicate
+      const marker = L.marker(latlng, { icon: icon, draggable: true });
+      marker.addTo(map);
+      marker.options.markerId = id || makeId();
+      marker.options.markerType = type;
+      markersMap[marker.options.markerId] = marker;
+
+      marker.on('click', () => {
+        showCustomPopup(marker, type, data);
+      });
+
+      // Save initial marker (if not already present)
+      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
+
+      // Update saved position on drag
+      marker.on('dragend', async ev => {
+        const pos = ev.target.getLatLng();
+        await updateMarkerPosition(marker.options.markerId, pos);
+      });
+    }
+
+    // --- Firestore marker functions ---
+    async function saveMarker(id, type, latlng, data) {
+      await setDoc(doc(db, "markers", id), {
+        id, type, lat: latlng.lat, lng: latlng.lng, data
+      });
+    }
+
+    async function updateMarkerPosition(id, latlng) {
+      const markerDoc = doc(db, "markers", id);
+      await setDoc(markerDoc, {
+        ...(allMarkers.find(m => m.id === id) || {}),
+        id,
+        lat: latlng.lat,
+        lng: latlng.lng
+      }, { merge: true });
+    }
+
+    async function removeMarker(id) {
+      await deleteDoc(doc(db, "markers", id));
+    }
+
+    // --- Real-time sync with Firestore ---
+    function refreshMarkersFromFirestore() {
+      onSnapshot(collection(db, "markers"), (snapshot) => {
+        // Remove all current markers
+        Object.values(markersMap).forEach(m => map.removeLayer(m));
+        markersMap = {};
+        allMarkers = [];
+        snapshot.forEach(docSnap => {
+          const m = docSnap.data();
+          allMarkers.push(m);
+        });
+        // Show all markers by default (no filtering here)
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
+        applyFilters();
+      });
+    }
+    refreshMarkersFromFirestore();
+
+    // --- Settings menu actions ---
+    window.syncMarkers = function() {
+      alert("Synced!");
+    };
+    window.removeAllMarkers = function() {
+      const pw = prompt("Enter password to remove all machines:");
+      if (pw !== "1111") {
+        alert("Incorrect password.");
+        return;
+      }
+      allMarkers.forEach(m => removeMarker(m.id));
+      alert("All machines removed.");
+    };
+
+    // --- Dropdown toggle ---
+    window.toggleMenu = function(id) {
+      document.querySelectorAll('.dropdown-menu').forEach(m => {
+        if (m.id === id) m.classList.toggle('show');
+        else m.classList.remove('show');
+      });
+    };
+    document.addEventListener('click', (e) => {
+      const hitDropdown = e.target.closest('.dropdown');
+      const hitButton = e.target.closest('.dropdown > button');
+      if (!hitDropdown && !hitButton) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // --- Layers filtering ---
+    function applyFilters() {
+      const showG = document.getElementById('layerGroomer').checked;
+      const showC = document.getElementById('layerCharger').checked;
+      const showW = document.getElementById('layerWorker').checked;
+      Object.values(markersMap).forEach(m => {
+        const type = m.options.markerType;
+        if ((type==='groomer' && !showG) || (type==='charger' && !showC) || (type==='worker' && !showW)) {
+          map.removeLayer(m);
+        } else {
+          map.addLayer(m);
+        }
+      });
+    }
+    document.getElementById('layerGroomer').addEventListener('change', applyFilters);
+    document.getElementById('layerCharger').addEventListener('change', applyFilters);
+    document.getElementById('layerWorker').addEventListener('change', applyFilters);
+
+    // --- Temporary marker for geocode search ---
+    let tempMarker = null;
+
+    // --- Geocode search and zoom (no filtering) ---
+    const searchBox = document.getElementById('searchBox');
+    searchBox.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const query = searchBox.value.trim();
+        if (!query) return;
+        // Call Nominatim API
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+        const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+        const results = await resp.json();
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          map.setView([lat, lon], 16);
+
+          // Remove previous temp marker
+          if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+          // Add temporary marker
+          tempMarker = L.marker([lat, lon], {
+            icon: L.icon({
+              iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+              shadowSize: [41, 41]
+            })
+          }).addTo(map);
+        } else {
+          alert('Place not found!');
+        }
+      }
+    });
+
+    // Remove temp marker if search bar input changes
+    searchBox.addEventListener('input', () => {
+      if (tempMarker) {
+        map.removeLayer(tempMarker);
+        tempMarker = null;
+      }
+    });
+
+    // --- Filter button for marker info search (toggle) ---
+    const filterBtn = document.getElementById('filterBtn');
+    let filterActive = false;
+    filterBtn.addEventListener('click', () => {
+      filterActive = !filterActive;
+      filterBtn.classList.toggle('active', filterActive);
+
+      // Remove all markers from the map and from markersMap
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      markersMap = {};
+
+      if (!filterActive) {
+        // Show all markers
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+
+      // Otherwise, filter and show only matches
+      const q = searchBox.value.trim().toLowerCase();
+      if (!q) {
+        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        return;
+      }
+      const matches = allMarkers.filter(m => {
+        if (String(m.id).toLowerCase().includes(q)) return true;
+        if (String(m.type).toLowerCase().includes(q)) return true;
+        if (m.data) {
+          for (const v of Object.values(m.data)) {
+            if (String(v).toLowerCase().includes(q)) return true;
+          }
+        }
+        return false;
+      });
+      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+    });
+
+    // --- Service Worker registration for PWA ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+          // Registration successful
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
