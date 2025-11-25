@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Xelom Fleet Manager</title>
+  <!-- Mobile-optimized viewport and PWA meta tags -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,6 +13,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
+    /* Mobile-first base styles */
     * {
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
@@ -58,9 +60,9 @@
       border: 2px solid #ffcc00;
       background: #121212;
       color: #fff;
-      font-size: 16px;
+      font-size: 16px; /* Prevents zoom on iOS */
       flex: 1;
-      min-width: 120px;
+      min-width: 100px;
       max-width: 200px;
     }
     
@@ -75,6 +77,7 @@
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
       white-space: nowrap;
+      touch-action: manipulation;
     }
     
     .filter-btn.active {
@@ -180,6 +183,7 @@
       cursor: grab;
       object-fit: contain;
       user-select: none;
+      -webkit-user-select: none;
       touch-action: none;
     }
     
@@ -466,6 +470,7 @@
       background: #1e1e1e;
       border-radius: 6px;
       text-decoration: none;
+      color: #4af;
     }
     
     /* Tab styles - Mobile Optimized */
@@ -801,7 +806,7 @@
       background: #555;
     }
     
-    /* Safe area insets for notched phones */
+    /* Safe area insets for notched phones (iPhone X+) */
     @supports (padding-top: env(safe-area-inset-top)) {
       h1 {
         padding-top: calc(8px + env(safe-area-inset-top));
@@ -830,12 +835,6 @@
           padding-bottom: 24px;
         }
       }
-    }
-    
-    /* Prevent text selection during drag */
-    .toolbar img {
-      -webkit-user-select: none;
-      user-select: none;
     }
     
     /* Loading state */
@@ -873,8 +872,696 @@
   </div>
   <div class="toolbar" id="toolbar">
     <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer" />
-    <img src="charger.png" id="drag
-      data.activeIssue.solution = solution;
+    <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger" />
+    <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker" />
+  </div>
+  <!-- Custom popup (hidden by default) -->
+  <div id="customPopup" class="custom-popup">
+    <button class="close-btn" onclick="closeCustomPopup()">&times;</button>
+    <div id="customPopupContent"></div>
+  </div>
+  <script type="module">
+    import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC65oOEKTqlMZUNqdegRHfsA_GZS7jBvxk",
+      authDomain: "xelom-fleet-manager.firebaseapp.com",
+      projectId: "xelom-fleet-manager",
+      storageBucket: "xelom-fleet-manager.appspot.com",
+      messagingSenderId: "173013299862",
+      appId: "1:173013299862:web:5a14d25468887f7dfe48b7",
+      measurementId: "G-G63KR8F5X9"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- ICONS ---
+    const icons = {
+      groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      worker: L.icon({ iconUrl: 'van.png',     iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] })
+    };
+
+    function makeId() {
+      return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // --- Map initialization ---
+    const map = L.map('map').setView([46.5, 11.3], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker registry
+    let markersMap = {}; // id -> marker
+    let allMarkers = []; // for search/filter
+
+    // Store current popup data reference for updates
+    let currentPopupData = null;
+    let currentPopupMarker = null;
+
+    // --- Mobile Touch Drag and Drop ---
+    let dragType = null;
+    let touchDragElement = null;
+    let touchDragClone = null;
+    
+    const toolbarImages = document.querySelectorAll('.toolbar img');
+    
+    // Desktop drag and drop
+    toolbarImages.forEach(img => {
+      img.setAttribute('draggable', 'true');
+      
+      img.addEventListener('dragstart', e => {
+        dragType = img.getAttribute('data-type');
+        e.dataTransfer.setData('text/plain', dragType);
+      });
+      
+      img.addEventListener('dragend', e => {
+        dragType = null;
+      });
+      
+      // Mobile touch drag
+      img.addEventListener('touchstart', e => {
+        e.preventDefault();
+        touchDragElement = img;
+        dragType = img.getAttribute('data-type');
+        
+        // Create a clone for visual feedback
+        touchDragClone = img.cloneNode(true);
+        touchDragClone.style.position = 'fixed';
+        touchDragClone.style.pointerEvents = 'none';
+        touchDragClone.style.zIndex = '9999';
+        touchDragClone.style.opacity = '0.8';
+        touchDragClone.style.transform = 'scale(1.2)';
+        document.body.appendChild(touchDragClone);
+        
+        const touch = e.touches[0];
+        touchDragClone.style.left = (touch.clientX - 26) + 'px';
+        touchDragClone.style.top = (touch.clientY - 26) + 'px';
+      }, { passive: false });
+      
+      img.addEventListener('touchmove', e => {
+        if (!touchDragClone) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchDragClone.style.left = (touch.clientX - 26) + 'px';
+        touchDragClone.style.top = (touch.clientY - 26) + 'px';
+      }, { passive: false });
+      
+      img.addEventListener('touchend', e => {
+        if (!touchDragClone || !dragType) {
+          cleanupTouchDrag();
+          return;
+        }
+        
+        const touch = e.changedTouches[0];
+        const mapDiv = document.getElementById('map');
+        const rect = mapDiv.getBoundingClientRect();
+        
+        // Check if dropped on map
+        if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+            touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          const x = touch.clientX - rect.left;
+          const y = touch.clientY - rect.top;
+          const latlng = map.containerPointToLatLng([x, y]);
+          addMarker(dragType, latlng, {}, makeId(), true);
+        }
+        
+        cleanupTouchDrag();
+      });
+      
+      img.addEventListener('touchcancel', cleanupTouchDrag);
+    });
+    
+    function cleanupTouchDrag() {
+      if (touchDragClone && touchDragClone.parentNode) {
+        touchDragClone.parentNode.removeChild(touchDragClone);
+      }
+      touchDragClone = null;
+      touchDragElement = null;
+      dragType = null;
+    }
+
+    // Desktop drop on map
+    const mapDiv = document.getElementById('map');
+    mapDiv.addEventListener('dragover', function(e) {
+      e.preventDefault();
+    });
+
+    mapDiv.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragType) return;
+      const rect = mapDiv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const latlng = map.containerPointToLatLng([x, y]);
+      addMarker(dragType, latlng, {}, makeId(), true);
+      dragType = null;
+    });
+
+    // --- Dropdown menu handling (touch-friendly) ---
+    function toggleMenu(menuId) {
+      const menu = document.getElementById(menuId);
+      const wasOpen = menu.classList.contains('show');
+      
+      // Close all menus first
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      
+      // Toggle the clicked menu
+      if (!wasOpen) {
+        menu.classList.add('show');
+      }
+    }
+    
+    // Make toggleMenu available globally
+    window.toggleMenu = toggleMenu;
+    
+    // Button click handlers
+    document.getElementById('settingsBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu('settingsMenu');
+    });
+    
+    document.getElementById('layersBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu('layersMenu');
+    });
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+    
+    // Prevent menu from closing when clicking inside it
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+      menu.addEventListener('click', (e) => {
+        // Don't stop propagation for buttons (let them close the menu after action)
+        if (e.target.tagName !== 'BUTTON') {
+          e.stopPropagation();
+        }
+      });
+    });
+
+    // --- Custom Popup Logic ---
+    window.closeCustomPopup = function() {
+      document.getElementById('customPopup').style.display = 'none';
+      document.getElementById('customPopupContent').innerHTML = '';
+      currentPopupMarker = null;
+      currentPopupData = null;
+      // Re-enable body scroll on mobile
+      document.body.style.overflow = '';
+    };
+
+    function formatDateTime(date) {
+      return new Date(date).toLocaleString('en-GB', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function showCustomPopup(marker, type, data) {
+      currentPopupMarker = marker;
+      currentPopupData = data;
+      
+      // Disable body scroll on mobile
+      document.body.style.overflow = 'hidden';
+      
+      let formHtml = '';
+      if (type === 'groomer') {
+        // Initialize data structures if not present
+        data.software = data.software || { vcu: '', display: '', battery: '', evcc: '', vfd: '' };
+        data.reworks = data.reworks || [];
+        data.activeIssue = data.activeIssue || null;
+        data.archivedIssues = data.archivedIssues || [];
+        
+        const status = data.status || "Working";
+        const imgSrc = status === "Issue" ? "groomerissues.png" : "groomer.png";
+        
+        formHtml = `
+          <div class="popup-inner">
+            <!-- Tabs -->
+            <div class="groomer-tabs">
+              <button class="groomer-tab active" data-tab="general">General</button>
+              <button class="groomer-tab" data-tab="software">Software</button>
+              <button class="groomer-tab" data-tab="issues">Issues</button>
+            </div>
+            
+            <!-- Tab 1: General -->
+            <div class="groomer-tab-content active" id="tab-general">
+              <div class="groomer-popup-flex">
+                <div class="groomer-popup-img">
+                  <img id="groomerStatusImg" src="${imgSrc}" alt="Groomer" />
+                </div>
+                <div class="groomer-popup-fields">
+                  <label>Serial Number</label><input id="serial" value="${data.serial||""}">
+                  <label>Size</label>
+                  <select id="size">
+                    <option ${data.size==="280"?"selected":""}>280</option>
+                    <option ${data.size==="320"?"selected":""}>320</option>
+                    <option ${data.size==="250"?"selected":""}>250</option>
+                  </select>
+                  <label>Blade Serial</label><input id="blade" value="${data.blade||""}">
+                  <label>Tiller Serial</label><input id="tiller" value="${data.tiller||""}">
+                  <label>Status</label>
+                  <select id="status">
+                    <option ${status==="Working"?"selected":""}>Working</option>
+                    <option ${status==="Issue"?"selected":""}>Issue</option>
+                  </select>
+                </div>
+              </div>
+              <div class="groomer-popup-details">
+                <div>
+                  <label>Responsible</label>
+                  <input id="responsibleName" placeholder="Name" value="${data.responsibleName||""}">
+                  <input id="responsiblePhone" placeholder="Phone" value="${data.responsiblePhone||""}">
+                  <div id="responsiblePhoneLink" class="phone-link"></div>
+                  <label>Driver</label>
+                  <input id="driverName" placeholder="Name" value="${data.driverName||""}">
+                  <input id="driverPhone" placeholder="Phone" value="${data.driverPhone||""}">
+                  <div id="driverPhoneLink" class="phone-link"></div>
+                  <label>Mechanic</label>
+                  <input id="mechanicName" placeholder="Name" value="${data.mechanicName||""}">
+                  <input id="mechanicPhone" placeholder="Phone" value="${data.mechanicPhone||""}">
+                  <div id="mechanicPhoneLink" class="phone-link"></div>
+                </div>
+                <div>
+                  <label>Ski Area Name</label>
+                  <input id="skiAreaName" value="${data.skiAreaName||""}">
+                  <label>Address</label>
+                  <input id="skiAreaAddress" value="${data.skiAreaAddress||""}">
+                  <div id="skiAreaAddressLink" class="address-link"></div>
+                  <label>Hotel Name</label>
+                  <input id="hotelName" value="${data.hotelName||""}">
+                  <label>Hotel Address</label>
+                  <input id="hotelAddress" value="${data.hotelAddress||""}">
+                  <div id="hotelAddressLink" class="address-link"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tab 2: Software -->
+            <div class="groomer-tab-content" id="tab-software">
+              <div class="software-section">
+                <label>VCU Software</label>
+                <input id="sw-vcu" value="${data.software.vcu||""}">
+                <label>Display Software</label>
+                <input id="sw-display" value="${data.software.display||""}">
+                <label>Battery Software</label>
+                <input id="sw-battery" value="${data.software.battery||""}">
+                <label>EVCC Software</label>
+                <input id="sw-evcc" value="${data.software.evcc||""}">
+                <label>VFD Software</label>
+                <input id="sw-vfd" value="${data.software.vfd||""}">
+              </div>
+              
+              <div class="section-title">Reworks</div>
+              <div class="rework-list" id="reworkList">
+                ${renderReworkList(data.reworks)}
+              </div>
+              <div class="add-rework-row">
+                <input type="text" id="newReworkInput" placeholder="Enter new rework...">
+                <button class="add-rework-btn" id="addReworkBtn">Add</button>
+              </div>
+            </div>
+            
+            <!-- Tab 3: Issues -->
+            <div class="groomer-tab-content" id="tab-issues">
+              <div id="issueContent">
+                ${renderIssueContent(data)}
+              </div>
+            </div>
+            
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>
+        `;
+      }
+      if (type === 'charger') {
+        formHtml = `
+          <div class="popup-inner popup-form">
+            <label>Power</label>
+            <select id="power">
+              <option ${data.power==="150 kW"?"selected":""}>150 kW</option>
+              <option ${data.power==="30 kW"?"selected":""}>30 kW</option>
+              <option ${data.power==="Hypercharger"?"selected":""}>Hypercharger</option>
+            </select>
+            <label>Serial</label><input id="serial" value="${data.serial||""}">
+            <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
+            <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      if (type === 'worker') {
+        formHtml = `
+          <div class="popup-inner popup-form">
+            <label>Worker Name</label><input id="workerName" value="${data.workerName||""}">
+            <label>Car Model</label><input id="carModel" value="${data.carModel||""}">
+            <label>Number Plate</label><input id="numberPlate" value="${data.numberPlate||""}">
+            <label>Day Present</label><input type="date" id="day" value="${data.day||""}">
+            <label>Planned End</label><input type="date" id="end" value="${data.end||""}">
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>`;
+      }
+      document.getElementById('customPopupContent').innerHTML = formHtml;
+      document.getElementById('customPopup').style.display = 'block';
+
+      const popupEl = document.getElementById('customPopupContent');
+      
+      // Tab switching for groomer
+      if (type === 'groomer') {
+        const tabs = popupEl.querySelectorAll('.groomer-tab');
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+            popupEl.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active');
+          });
+        });
+        
+        // Rework functionality
+        setupReworkHandlers(popupEl, data, marker);
+        
+        // Issue functionality
+        setupIssueHandlers(popupEl, data, marker);
+      }
+
+      // Add logic for address/phone links and image update for groomer
+      const statusSelect = popupEl.querySelector('#status');
+      const imgEl = popupEl.querySelector('#groomerStatusImg');
+      if (statusSelect && imgEl) {
+        statusSelect.addEventListener('change', () => {
+          imgEl.src = statusSelect.value === "Issue" ? "groomerissues.png" : "groomer.png";
+          // If switching to Issue, prompt to create issue
+          if (statusSelect.value === "Issue" && !data.activeIssue) {
+            // Switch to issues tab
+            popupEl.querySelectorAll('.groomer-tab').forEach(t => t.classList.remove('active'));
+            popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');
+            popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+            popupEl.querySelector('#tab-issues').classList.add('active');
+          }
+        });
+      }
+      
+      function updateAddressLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (address) => {
+            if (address) {
+              const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address);
+              linkDiv.innerHTML = `<a href="${url}" target="_blank">📍 Open in Maps</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updateAddressLink('skiAreaAddress', 'skiAreaAddressLink');
+      updateAddressLink('hotelAddress', 'hotelAddressLink');
+      
+      function updatePhoneLink(inputId, linkId) {
+        const input = popupEl.querySelector(`#${inputId}`);
+        const linkDiv = popupEl.querySelector(`#${linkId}`);
+        if (input && linkDiv) {
+          const setLink = (phone) => {
+            const clean = phone.replace(/[^+\d]/g, '');
+            if (clean) {
+              linkDiv.innerHTML = `<a href="tel:${clean}">📞 Call</a>`;
+            } else {
+              linkDiv.innerHTML = "";
+            }
+          };
+          setLink(input.value.trim());
+          input.addEventListener('input', () => setLink(input.value.trim()));
+        }
+      }
+      updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
+      updatePhoneLink('driverPhone', 'driverPhoneLink');
+      updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+
+      // Save/Remove logic
+      const saveBtn = popupEl.querySelector('#saveBtn');
+      const removeBtn = popupEl.querySelector('#removeBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+          // Collect general fields
+          const generalInputs = popupEl.querySelectorAll('#tab-general input, #tab-general select, .popup-form input, .popup-form select');
+          const values = {};
+          generalInputs.forEach(i => {
+            if (i.id) values[i.id] = i.value;
+          });
+          
+          // Collect software fields for groomer
+          if (type === 'groomer') {
+            values.software = {
+              vcu: popupEl.querySelector('#sw-vcu')?.value || '',
+              display: popupEl.querySelector('#sw-display')?.value || '',
+              battery: popupEl.querySelector('#sw-battery')?.value || '',
+              evcc: popupEl.querySelector('#sw-evcc')?.value || '',
+              vfd: popupEl.querySelector('#sw-vfd')?.value || ''
+            };
+            values.reworks = data.reworks || [];
+            values.activeIssue = data.activeIssue || null;
+            values.archivedIssues = data.archivedIssues || [];
+          }
+          
+          await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
+          if (marker.options.markerType === 'groomer') {
+            if (values.status === 'Issue') {
+              marker.setIcon(icons.groomerissues);
+            } else {
+              marker.setIcon(icons.groomer);
+            }
+          }
+          alert('Saved!');
+          closeCustomPopup();
+        });
+      }
+      if (removeBtn) {
+        removeBtn.addEventListener('click', async () => {
+          if (confirm('Are you sure you want to remove this marker?')) {
+            await removeMarker(marker.options.markerId);
+            map.removeLayer(marker);
+            delete markersMap[marker.options.markerId];
+            closeCustomPopup();
+          }
+        });
+      }
+    }
+
+    // Render rework list HTML
+    function renderReworkList(reworks) {
+      if (!reworks || reworks.length === 0) {
+        return '<div class="no-issue-msg">No reworks pending</div>';
+      }
+      return reworks.map((rework, index) => `
+        <div class="rework-item" data-index="${index}">
+          <input type="checkbox" class="rework-checkbox" data-index="${index}">
+          <span>${escapeHtml(rework)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Setup rework handlers
+    function setupReworkHandlers(popupEl, data, marker) {
+      const addBtn = popupEl.querySelector('#addReworkBtn');
+      const input = popupEl.querySelector('#newReworkInput');
+      const reworkList = popupEl.querySelector('#reworkList');
+      
+      if (addBtn && input) {
+        addBtn.addEventListener('click', async () => {
+          const text = input.value.trim();
+          if (!text) return;
+          
+          data.reworks = data.reworks || [];
+          data.reworks.push(text);
+          input.value = '';
+          
+          reworkList.innerHTML = renderReworkList(data.reworks);
+          attachReworkCheckboxListeners(popupEl, data, marker);
+        });
+        
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addBtn.click();
+          }
+        });
+      }
+      
+      attachReworkCheckboxListeners(popupEl, data, marker);
+    }
+
+    function attachReworkCheckboxListeners(popupEl, data, marker) {
+      const checkboxes = popupEl.querySelectorAll('.rework-checkbox');
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', async () => {
+          const index = parseInt(cb.dataset.index);
+          // Remove the rework when checked
+          data.reworks.splice(index, 1);
+          
+          const reworkList = popupEl.querySelector('#reworkList');
+          reworkList.innerHTML = renderReworkList(data.reworks);
+          attachReworkCheckboxListeners(popupEl, data, marker);
+        });
+      });
+    }
+
+    // Render issue content
+    function renderIssueContent(data) {
+      const hasActiveIssue = data.activeIssue && data.activeIssue.problem;
+      
+      if (hasActiveIssue) {
+        // Show active issue
+        return `
+          <div class="active-issue-box">
+            <h4>⚠️ Active Issue</h4>
+            <div style="margin-bottom: 10px;">
+              <strong>Problem:</strong> ${escapeHtml(data.activeIssue.problem)}
+            </div>
+            <div style="margin-bottom: 6px; font-size: 12px; color: #888;">
+              Started: ${formatDateTime(data.activeIssue.createdAt)}
+            </div>
+            ${data.activeIssue.responsible ? `<div style="margin-bottom: 6px;"><strong>Responsible:</strong> ${escapeHtml(data.activeIssue.responsible)}</div>` : ''}
+            
+            <div class="section-title">Updates</div>
+            <div class="issue-updates" id="issueUpdates">
+              ${renderIssueUpdates(data.activeIssue.updates || [])}
+            </div>
+            <div class="add-update-row">
+              <input type="text" id="newUpdateInput" placeholder="Add update...">
+              <button class="add-rework-btn" id="addUpdateBtn">Add</button>
+            </div>
+            
+            <button class="done-issue-btn" id="resolveIssueBtn">✓ Mark as Resolved</button>
+          </div>
+          
+          <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
+          <div id="archiveContainer"></div>
+        `;
+      } else {
+        // Show create new issue form
+        return `
+          <div class="popup-form">
+            <div class="section-title">Create New Issue</div>
+            <label>Problem Description</label>
+            <textarea id="newIssueProblem" rows="3" placeholder="Describe the issue..."></textarea>
+            <label>Responsible Person</label>
+            <input type="text" id="newIssueResponsible" placeholder="Who is handling this?">
+            <button class="btn save-btn" id="createIssueBtn" style="width: 100%; margin-top: 12px;">Create Issue</button>
+          </div>
+          
+          <button class="archive-btn" id="showArchiveBtn">📁 View Archive (${data.archivedIssues?.length || 0})</button>
+          <div id="archiveContainer"></div>
+        `;
+      }
+    }
+
+    function renderIssueUpdates(updates) {
+      if (!updates || updates.length === 0) {
+        return '<div class="no-issue-msg" style="padding: 12px;">No updates yet</div>';
+      }
+      return updates.map(update => `
+        <div class="issue-update-item">
+          <div class="update-time">${formatDateTime(update.time)}</div>
+          <div class="update-text">${escapeHtml(update.text)}</div>
+        </div>
+      `).join('');
+    }
+
+    function setupIssueHandlers(popupEl, data, marker) {
+      // Create issue button
+      const createBtn = popupEl.querySelector('#createIssueBtn');
+      if (createBtn) {
+        createBtn.addEventListener('click', () => {
+          const problem = popupEl.querySelector('#newIssueProblem')?.value.trim();
+          const responsible = popupEl.querySelector('#newIssueResponsible')?.value.trim();
+          
+          if (!problem) {
+            alert('Please describe the problem');
+            return;
+          }
+          
+          data.activeIssue = {
+            problem: problem,
+            responsible: responsible,
+            createdAt: new Date().toISOString(),
+            updates: []
+          };
+          
+          data.status = 'Issue';
+          
+          // Update the status dropdown and image if visible
+          const statusSelect = popupEl.querySelector('#status');
+          if (statusSelect) statusSelect.value = 'Issue';
+          const imgEl = popupEl.querySelector('#groomerStatusImg');
+          if (imgEl) imgEl.src = 'groomerissues.png';
+          
+          marker.setIcon(icons.groomerissues);
+          
+          // Re-render issue content
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupIssueHandlers(popupEl, data, marker);
+        });
+      }
+      
+      // Add update button
+      const addUpdateBtn = popupEl.querySelector('#addUpdateBtn');
+      if (addUpdateBtn) {
+        const updateInput = popupEl.querySelector('#newUpdateInput');
+        
+        addUpdateBtn.addEventListener('click', () => {
+          const text = updateInput?.value.trim();
+          if (!text) return;
+          
+          data.activeIssue.updates = data.activeIssue.updates || [];
+          data.activeIssue.updates.push({
+            time: new Date().toISOString(),
+            text: text
+          });
+          
+          updateInput.value = '';
+          
+          const updatesContainer = popupEl.querySelector('#issueUpdates');
+          updatesContainer.innerHTML = renderIssueUpdates(data.activeIssue.updates);
+        });
+        
+        updateInput?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addUpdateBtn.click();
+          }
+        });
+      }
+      
+      // Resolve issue button
+      const resolveBtn = popupEl.querySelector('#resolveIssueBtn');
+      if (resolveBtn) {
+        resolveBtn.addEventListener('click', () => {
+          const solution = prompt('Enter the solution or resolution:');
+          if (!solution) return;
+          
+          data.activeIssue.solution = solution;
           data.activeIssue.resolvedAt = new Date().toISOString();
           
           data.archivedIssues = data.archivedIssues || [];
@@ -898,6 +1585,7 @@
         });
       }
       
+      // Show archive button
       const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
       if (showArchiveBtn) {
         showArchiveBtn.addEventListener('click', () => {
@@ -985,6 +1673,7 @@
       return div.innerHTML;
     }
 
+    // --- Marker Management ---
     function addMarker(type, latlng, data={}, id, saveToDb=false) {
       let icon = icons[type];
       if (type === 'groomer' && data.status === 'Issue') {
@@ -1001,80 +1690,72 @@
         showCustomPopup(marker, type, data);
       });
 
-      if (saveToDb) saveMarker(marker.options.markerId, type, latlng, data);
-
-      marker.on('dragend', async ev => {
-        const pos = ev.target.getLatLng();
-        await updateMarkerPosition(marker.options.markerId, pos);
+      marker.on('dragend', async () => {
+        await saveMarker(marker.options.markerId, type, marker.getLatLng(), data);
       });
+
+      if (saveToDb) {
+        saveMarker(marker.options.markerId, type, latlng, data);
+      }
     }
 
     async function saveMarker(id, type, latlng, data) {
-      await setDoc(doc(db, "markers", id), {
-        id, type, lat: latlng.lat, lng: latlng.lng, data
-      });
-    }
-
-    async function updateMarkerPosition(id, latlng) {
-      const markerDoc = doc(db, "markers", id);
-      await setDoc(markerDoc, {
-        ...(allMarkers.find(m => m.id === id) || {}),
-        id, lat: latlng.lat, lng: latlng.lng
-      }, { merge: true });
+      try {
+        await setDoc(doc(db, "markers", id), {
+          id,
+          type,
+          lat: latlng.lat,
+          lng: latlng.lng,
+          data: data || {}
+        });
+      } catch (e) {
+        console.error("Error saving marker:", e);
+      }
     }
 
     async function removeMarker(id) {
-      await deleteDoc(doc(db, "markers", id));
+      try {
+        await deleteDoc(doc(db, "markers", id));
+      } catch (e) {
+        console.error("Error removing marker:", e);
+      }
     }
-
-    function refreshMarkersFromFirestore() {
-      onSnapshot(collection(db, "markers"), (snapshot) => {
-        Object.values(markersMap).forEach(m => map.removeLayer(m));
-        markersMap = {};
-        allMarkers = [];
-        snapshot.forEach(docSnap => {
-          const m = docSnap.data();
-          allMarkers.push(m);
-        });
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data, m.id, false));
-        applyFilters();
-      });
-    }
-    refreshMarkersFromFirestore();
 
     window.syncMarkers = function() {
-      alert("Synced!");
-    };
-    
-    window.removeAllMarkers = function() {
-      const pw = prompt("Enter password to remove all machines:");
-      if (pw !== "1111") {
-        alert("Incorrect password.");
-        return;
-      }
-      allMarkers.forEach(m => removeMarker(m.id));
-      alert("All machines removed.");
+      location.reload();
     };
 
-    // Dropdown toggle - updated for mobile
-    document.getElementById('settingsBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('settingsMenu').classList.toggle('show');
-      document.getElementById('layersMenu').classList.remove('show');
-    });
-    
-    document.getElementById('layersBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('layersMenu').classList.toggle('show');
-      document.getElementById('settingsMenu').classList.remove('show');
-    });
-    
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.dropdown')) {
-        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    window.removeAllMarkers = async function() {
+      if (!confirm('Are you sure you want to remove ALL markers? This cannot be undone.')) return;
+      for (const id in markersMap) {
+        await removeMarker(id);
+        map.removeLayer(markersMap[id]);
       }
+      markersMap = {};
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    };
+
+    // --- Realtime sync from Firebase ---
+    onSnapshot(collection(db, "markers"), (snapshot) => {
+      const dbIds = new Set();
+      snapshot.forEach((docSnap) => {
+        const m = docSnap.data();
+        dbIds.add(m.id);
+        if (!markersMap[m.id]) {
+          addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id);
+        }
+      });
+      // Remove markers not in DB
+      for (const id in markersMap) {
+        if (!dbIds.has(id)) {
+          map.removeLayer(markersMap[id]);
+          delete markersMap[id];
+        }
+      }
+      applyFilters();
     });
 
+    // --- Layer Filters ---
     function applyFilters() {
       const showG = document.getElementById('layerGroomer').checked;
       const showC = document.getElementById('layerCharger').checked;
@@ -1092,6 +1773,7 @@
     document.getElementById('layerCharger').addEventListener('change', applyFilters);
     document.getElementById('layerWorker').addEventListener('change', applyFilters);
 
+    // --- Search functionality ---
     let tempMarker = null;
 
     const searchBox = document.getElementById('searchBox');
@@ -1124,45 +1806,54 @@
       }
     });
 
-    searchBox.addEventListener('input', () => {
-      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
-    });
-
+    // --- Filter button (search within markers) ---
     const filterBtn = document.getElementById('filterBtn');
     let filterActive = false;
+    
     filterBtn.addEventListener('click', () => {
       filterActive = !filterActive;
       filterBtn.classList.toggle('active', filterActive);
-
-      Object.values(markersMap).forEach(m => map.removeLayer(m));
-      markersMap = {};
-
+      
       if (!filterActive) {
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        // Show all markers again
+        Object.values(markersMap).forEach(m => map.addLayer(m));
+        applyFilters();
         return;
       }
-
+      
       const q = searchBox.value.trim().toLowerCase();
       if (!q) {
-        allMarkers.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+        filterActive = false;
+        filterBtn.classList.remove('active');
         return;
       }
-      const matches = allMarkers.filter(m => {
-        if (String(m.id).toLowerCase().includes(q)) return true;
-        if (String(m.type).toLowerCase().includes(q)) return true;
-        if (m.data) {
-          for (const v of Object.values(m.data)) {
-            if (String(v).toLowerCase().includes(q)) return true;
+      
+      // Hide all, then show matches
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      
+      const matches = Object.values(markersMap).filter(m => {
+        const data = m.options.markerData || {};
+        // Search in marker data fields
+        for (const key in data) {
+          const v = data[key];
+          if (typeof v === 'string' && v.toLowerCase().includes(q)) return true;
+          if (typeof v === 'object' && v !== null) {
+            for (const subKey in v) {
+              if (String(v[subKey]).toLowerCase().includes(q)) return true;
+            }
           }
         }
         return false;
       });
-      matches.forEach(m => addMarker(m.type, L.latLng(m.lat, m.lng), m.data || {}, m.id));
+      
+      matches.forEach(m => map.addLayer(m));
     });
 
+    // --- Service Worker for PWA ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('sw.js').then(function(registration) {
+          console.log('ServiceWorker registered');
         }, function(err) {
           console.log('ServiceWorker registration failed: ', err);
         });
