@@ -973,6 +973,93 @@
       opacity: 0.7;
       pointer-events: none;
     }
+    
+    /* Add Equipment Form Styles */
+    .add-equipment-form {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .add-equipment-form .form-title {
+      color: #ffcc00;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    
+    .add-equipment-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: flex-end;
+    }
+    
+    .add-equipment-row .input-group {
+      flex: 1;
+    }
+    
+    .add-equipment-row label {
+      display: block;
+      color: #aaa;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    
+    .add-equipment-row input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      font-size: 14px;
+    }
+    
+    .add-equipment-row input:focus {
+      outline: none;
+      border-color: #ffcc00;
+    }
+    
+    .add-equipment-btn {
+      background: #ffcc00;
+      color: #121212;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    
+    .add-equipment-btn:hover, .add-equipment-btn:active {
+      background: #ffe066;
+    }
+    
+    .remove-equipment-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      touch-action: manipulation;
+    }
+    
+    .remove-equipment-btn:hover, .remove-equipment-btn:active {
+      background: #ff6666;
+    }
+    
+    .equipment-item .equipment-actions {
+      display: flex;
+      gap: 4px;
+    }
   </style>
 </head>
 <body>
@@ -1207,44 +1294,6 @@
       });
     }
 
-    // --- Get all equipment for a ski area ---
-    function getEquipmentForSkiArea(skiAreaName) {
-      const equipment = { current: [], archived: [] };
-      
-      Object.values(allMarkersData).forEach(m => {
-        if (m.type === 'groomer' || m.type === 'charger') {
-          const data = m.data || {};
-          
-          // Check current location
-          if (data.skiAreaName === skiAreaName) {
-            equipment.current.push({
-              type: m.type,
-              serial: data.serial || 'Unknown',
-              id: m.id,
-              assignedDate: data.skiAreaAssignedDate || null
-            });
-          }
-          
-          // Check location history
-          if (data.locationHistory) {
-            data.locationHistory.forEach(loc => {
-              if (loc.skiAreaName === skiAreaName) {
-                equipment.archived.push({
-                  type: m.type,
-                  serial: data.serial || 'Unknown',
-                  id: m.id,
-                  from: loc.assignedDate,
-                  to: loc.leftDate
-                });
-              }
-            });
-          }
-        }
-      });
-      
-      return equipment;
-    }
-
     // --- Render Location Section with Change Button ---
     function renderLocationSection(data, type) {
       const hasLocation = data.skiAreaName || data.skiAreaAddress;
@@ -1295,8 +1344,12 @@
     function setupLocationChangeHandler(popupEl, data, marker) {
       const changeBtn = popupEl.querySelector('#changeLocationBtn');
       if (changeBtn) {
-        changeBtn.addEventListener('click', () => {
+        changeBtn.addEventListener('click', async () => {
           if (!confirm('Are you sure you want to change the location? The current location will be archived.')) return;
+          
+          const oldSkiAreaName = data.skiAreaName;
+          const equipmentType = marker.options.markerType;
+          const serial = data.serial;
           
           // Archive current location
           data.locationHistory = data.locationHistory || [];
@@ -1309,12 +1362,35 @@
             leftDate: new Date().toISOString()
           });
           
+          // Also update locationArchive for new format
+          data.locationArchive = data.locationArchive || [];
+          data.locationArchive.unshift({
+            location: data.skiAreaName || '',
+            locationAddress: data.skiAreaAddress || '',
+            startDate: data.locationStartDate || data.skiAreaAssignedDate || new Date().toISOString(),
+            endDate: new Date().toISOString()
+          });
+          
+          // Update old ski area to mark equipment as removed
+          if (oldSkiAreaName && serial) {
+            for (const id in allMarkersData) {
+              const m = allMarkersData[id];
+              if (m.type === 'skiarea' && m.data && m.data.name === oldSkiAreaName) {
+                await removeEquipmentFromSkiAreaBySerial(id, serial, equipmentType, true);
+                break;
+              }
+            }
+          }
+          
           // Clear current location
           data.skiAreaName = '';
           data.skiAreaAddress = '';
           data.hotelName = '';
           data.hotelAddress = '';
           data.skiAreaAssignedDate = null;
+          data.location = '';
+          data.locationAddress = '';
+          data.locationStartDate = null;
           
           // Re-render the location section
           const locationSection = popupEl.querySelector('#locationSection');
@@ -1563,7 +1639,9 @@
       }
       
       if (type === 'skiarea') {
-        const equipment = getEquipmentForSkiArea(data.name || '');
+        // Initialize equipment and archive arrays
+        data.equipment = data.equipment || [];
+        data.archive = data.archive || [];
         
         formHtml = `
           <div class="popup-inner">
@@ -1601,44 +1679,8 @@
             
             <!-- Tab 2: Equipment -->
             <div class="groomer-tab-content" id="tab-equipment">
-              <div class="skiarea-equipment-section">
-                <div class="skiarea-equipment-header">
-                  <span>🚜 Current Equipment (${equipment.current.length})</span>
-                </div>
-                <div class="equipment-list">
-                  ${equipment.current.length === 0 ? 
-                    '<div class="no-issue-msg">No equipment currently assigned</div>' :
-                    equipment.current.map(eq => `
-                      <div class="equipment-item">
-                        <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
-                        <div class="equipment-info">
-                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                          <div class="equipment-dates">Since: ${eq.assignedDate ? formatDate(eq.assignedDate) : 'Unknown'}</div>
-                        </div>
-                      </div>
-                    `).join('')
-                  }
-                </div>
-              </div>
-              
-              <div class="skiarea-equipment-section" style="margin-top: 16px;">
-                <div class="skiarea-equipment-header">
-                  <span>📁 Equipment History (${equipment.archived.length})</span>
-                </div>
-                <div class="equipment-list">
-                  ${equipment.archived.length === 0 ? 
-                    '<div class="no-issue-msg">No equipment history</div>' :
-                    equipment.archived.map(eq => `
-                      <div class="equipment-item archived">
-                        <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
-                        <div class="equipment-info">
-                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                          <div class="equipment-dates">${formatDate(eq.from)} - ${formatDate(eq.to)}</div>
-                        </div>
-                      </div>
-                    `).join('')
-                  }
-                </div>
+              <div id="skiAreaEquipmentContent">
+                ${renderSkiAreaEquipmentTab(data)}
               </div>
             </div>
             
@@ -1692,6 +1734,10 @@
         setupLocationChangeHandler(popupEl, data, marker);
       }
       
+      if (type === 'skiarea') {
+        setupSkiAreaEquipmentHandlers(popupEl, data, marker);
+      }
+      
       // Setup address/phone links
       setupAddressPhoneLinks(popupEl);
 
@@ -1704,7 +1750,7 @@
           const inputs = popupEl.querySelectorAll('input, select, textarea');
           const values = {};
           inputs.forEach(i => {
-            if (i.id && !i.id.startsWith('sw-') && !i.id.startsWith('new')) {
+            if (i.id && !i.id.startsWith('sw-') && !i.id.startsWith('new') && !i.id.startsWith('add')) {
               values[i.id] = i.value;
             }
           });
@@ -1722,11 +1768,24 @@
             values.archivedIssues = data.archivedIssues || [];
             values.locationHistory = data.locationHistory || [];
             values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
+            values.locationArchive = data.locationArchive || [];
+            values.location = data.location || '';
+            values.locationAddress = data.locationAddress || '';
+            values.locationStartDate = data.locationStartDate || null;
           }
           
           if (type === 'charger') {
             values.locationHistory = data.locationHistory || [];
             values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
+            values.locationArchive = data.locationArchive || [];
+            values.location = data.location || '';
+            values.locationAddress = data.locationAddress || '';
+            values.locationStartDate = data.locationStartDate || null;
+          }
+          
+          if (type === 'skiarea') {
+            values.equipment = data.equipment || [];
+            values.archive = data.archive || [];
           }
           
           await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
@@ -2047,6 +2106,333 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    // --- Ski Area Equipment Tab Rendering ---
+    function renderSkiAreaEquipmentTab(skiAreaData) {
+      const currentEquipment = (skiAreaData.equipment || []).filter(eq => !eq.endDate);
+      const archivedEquipment = (skiAreaData.equipment || []).filter(eq => eq.endDate);
+      
+      return `
+        <!-- Add Equipment Form -->
+        <div class="add-equipment-form">
+          <div class="form-title">➕ Add Equipment by Serial Number</div>
+          <div class="add-equipment-row">
+            <div class="input-group">
+              <label>Groomer Serial #</label>
+              <input type="text" id="addGroomerSerial" placeholder="Enter groomer serial...">
+            </div>
+            <button class="add-equipment-btn" id="addGroomerBtn">Add</button>
+          </div>
+          <div class="add-equipment-row">
+            <div class="input-group">
+              <label>Charger Serial #</label>
+              <input type="text" id="addChargerSerial" placeholder="Enter charger serial...">
+            </div>
+            <button class="add-equipment-btn" id="addChargerBtn">Add</button>
+          </div>
+        </div>
+        
+        <!-- Current Equipment -->
+        <div class="skiarea-equipment-section">
+          <div class="skiarea-equipment-header">
+            <span>🚜 Current Equipment (${currentEquipment.length})</span>
+          </div>
+          <div class="equipment-list" id="currentEquipmentList">
+            ${currentEquipment.length === 0 ? 
+              '<div class="no-issue-msg">No equipment currently assigned</div>' :
+              currentEquipment.map(eq => `
+                <div class="equipment-item" data-serial="${escapeHtml(eq.serial)}" data-type="${eq.type}">
+                  <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
+                  <div class="equipment-info">
+                    <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
+                    <div class="equipment-dates">Since: ${eq.startDate ? formatDate(eq.startDate) : 'Unknown'}</div>
+                  </div>
+                  <div class="equipment-actions">
+                    <button class="remove-equipment-btn" data-serial="${escapeHtml(eq.serial)}" data-type="${eq.type}">Remove</button>
+                  </div>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+        
+        <!-- Equipment History -->
+        <div class="skiarea-equipment-section" style="margin-top: 16px;">
+          <div class="skiarea-equipment-header">
+            <span>📁 Equipment History (${archivedEquipment.length})</span>
+          </div>
+          <div class="equipment-list">
+            ${archivedEquipment.length === 0 ? 
+              '<div class="no-issue-msg">No equipment history</div>' :
+              archivedEquipment.map(eq => `
+                <div class="equipment-item archived">
+                  <img src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}">
+                  <div class="equipment-info">
+                    <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
+                    <div class="equipment-dates">${formatDate(eq.startDate)} - ${formatDate(eq.endDate)}</div>
+                  </div>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    // --- Find equipment marker by serial number ---
+    function findEquipmentBySerial(serial, equipmentType) {
+      for (const id in allMarkersData) {
+        const m = allMarkersData[id];
+        if (m.type === equipmentType && m.data && m.data.serial === serial) {
+          return { markerId: id, markerData: m, marker: markersMap[id] };
+        }
+      }
+      return null;
+    }
+
+    // --- Update equipment location (sync equipment's location fields and archive) ---
+    async function updateEquipmentLocation(equipmentMarkerId, newLocation, newAddress) {
+      const equipmentData = allMarkersData[equipmentMarkerId];
+      if (!equipmentData) return false;
+      
+      const marker = markersMap[equipmentMarkerId];
+      const data = equipmentData.data || {};
+      
+      // Archive the old location if there was one
+      if (data.location || data.locationAddress) {
+        data.locationArchive = data.locationArchive || [];
+        data.locationArchive.unshift({
+          location: data.location || '',
+          locationAddress: data.locationAddress || '',
+          startDate: data.locationStartDate || new Date().toISOString(),
+          endDate: new Date().toISOString()
+        });
+      }
+      
+      // Update to new location
+      data.location = newLocation;
+      data.locationAddress = newAddress;
+      data.locationStartDate = new Date().toISOString();
+      
+      // Also update the legacy skiAreaName/skiAreaAddress fields for compatibility
+      data.skiAreaName = newLocation;
+      data.skiAreaAddress = newAddress;
+      data.skiAreaAssignedDate = data.locationStartDate;
+      
+      // Save the equipment marker
+      await saveMarker(equipmentMarkerId, equipmentData.type, L.latLng(equipmentData.lat, equipmentData.lng), data);
+      
+      return true;
+    }
+
+    // --- Add equipment to ski area ---
+    async function addEquipmentToSkiArea(skiAreaMarker, skiAreaData, serial, equipmentType) {
+      if (!serial || !serial.trim()) {
+        alert('Please enter a serial number');
+        return false;
+      }
+      
+      serial = serial.trim();
+      
+      // Find the equipment marker by serial
+      const equipment = findEquipmentBySerial(serial, equipmentType);
+      if (!equipment) {
+        alert(`${equipmentType === 'groomer' ? 'Groomer' : 'Charger'} with serial "${serial}" not found`);
+        return false;
+      }
+      
+      // Check if already assigned to this ski area
+      const existingAssignment = (skiAreaData.equipment || []).find(
+        eq => eq.serial === serial && eq.type === equipmentType && !eq.endDate
+      );
+      if (existingAssignment) {
+        alert(`This ${equipmentType} is already assigned to this ski area`);
+        return false;
+      }
+      
+      const skiAreaName = skiAreaData.name || 'Unnamed Ski Area';
+      const skiAreaAddress = skiAreaData.address || '';
+      
+      // Check if equipment is assigned to another ski area and handle the removal
+      const equipmentCurrentLocation = equipment.markerData.data?.location || equipment.markerData.data?.skiAreaName;
+      if (equipmentCurrentLocation && equipmentCurrentLocation !== skiAreaName) {
+        // Find the old ski area and remove the equipment from it
+        for (const id in allMarkersData) {
+          const m = allMarkersData[id];
+          if (m.type === 'skiarea' && m.data && m.data.name === equipmentCurrentLocation) {
+            await removeEquipmentFromSkiAreaBySerial(id, serial, equipmentType, true);
+            break;
+          }
+        }
+      }
+      
+      // Initialize arrays if needed
+      skiAreaData.equipment = skiAreaData.equipment || [];
+      skiAreaData.archive = skiAreaData.archive || [];
+      
+      const now = new Date().toISOString();
+      
+      // Add to ski area's equipment list
+      skiAreaData.equipment.push({
+        serial: serial,
+        type: equipmentType,
+        startDate: now,
+        endDate: null
+      });
+      
+      // Add to ski area's archive
+      skiAreaData.archive.unshift({
+        type: 'equipment_added',
+        equipmentType: equipmentType,
+        serial: serial,
+        date: now,
+        note: `Added ${equipmentType} ${serial} to ski area`
+      });
+      
+      // Update equipment's location to point to this ski area
+      await updateEquipmentLocation(equipment.markerId, skiAreaName, skiAreaAddress);
+      
+      // Save the ski area marker
+      await saveMarker(skiAreaMarker.options.markerId, 'skiarea', skiAreaMarker.getLatLng(), skiAreaData);
+      
+      return true;
+    }
+
+    // --- Remove equipment from ski area ---
+    async function removeEquipmentFromSkiArea(skiAreaMarker, skiAreaData, serial, equipmentType) {
+      return await removeEquipmentFromSkiAreaBySerial(
+        skiAreaMarker.options.markerId, 
+        serial, 
+        equipmentType, 
+        false,
+        skiAreaMarker,
+        skiAreaData
+      );
+    }
+
+    async function removeEquipmentFromSkiAreaBySerial(skiAreaMarkerId, serial, equipmentType, skipEquipmentUpdate = false, skiAreaMarker = null, skiAreaData = null) {
+      // Get ski area data if not provided
+      if (!skiAreaData) {
+        const skiAreaMarkerData = allMarkersData[skiAreaMarkerId];
+        if (!skiAreaMarkerData) return false;
+        skiAreaData = skiAreaMarkerData.data || {};
+        skiAreaMarker = markersMap[skiAreaMarkerId];
+      }
+      
+      skiAreaData.equipment = skiAreaData.equipment || [];
+      skiAreaData.archive = skiAreaData.archive || [];
+      
+      // Find the current assignment
+      const assignmentIndex = skiAreaData.equipment.findIndex(
+        eq => eq.serial === serial && eq.type === equipmentType && !eq.endDate
+      );
+      
+      if (assignmentIndex === -1) {
+        return false; // Not currently assigned
+      }
+      
+      const now = new Date().toISOString();
+      
+      // Mark the assignment as ended
+      skiAreaData.equipment[assignmentIndex].endDate = now;
+      
+      // Add to ski area's archive
+      skiAreaData.archive.unshift({
+        type: 'equipment_removed',
+        equipmentType: equipmentType,
+        serial: serial,
+        date: now,
+        note: `Removed ${equipmentType} ${serial} from ski area`
+      });
+      
+      // Clear equipment's location if not skipping
+      if (!skipEquipmentUpdate) {
+        const equipment = findEquipmentBySerial(serial, equipmentType);
+        if (equipment) {
+          await updateEquipmentLocation(equipment.markerId, '', '');
+        }
+      }
+      
+      // Save the ski area marker
+      if (skiAreaMarker) {
+        const skiAreaMarkerData = allMarkersData[skiAreaMarkerId];
+        await saveMarker(skiAreaMarkerId, 'skiarea', skiAreaMarker.getLatLng(), skiAreaData);
+      }
+      
+      return true;
+    }
+
+    // --- Setup Ski Area Equipment Handlers ---
+    function setupSkiAreaEquipmentHandlers(popupEl, skiAreaData, skiAreaMarker) {
+      // Add Groomer button handler
+      const addGroomerBtn = popupEl.querySelector('#addGroomerBtn');
+      const addGroomerInput = popupEl.querySelector('#addGroomerSerial');
+      if (addGroomerBtn && addGroomerInput) {
+        addGroomerBtn.addEventListener('click', async () => {
+          const serial = addGroomerInput.value.trim();
+          const success = await addEquipmentToSkiArea(skiAreaMarker, skiAreaData, serial, 'groomer');
+          if (success) {
+            addGroomerInput.value = '';
+            refreshSkiAreaEquipmentTab(popupEl, skiAreaData, skiAreaMarker);
+          }
+        });
+        
+        addGroomerInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addGroomerBtn.click();
+          }
+        });
+      }
+      
+      // Add Charger button handler
+      const addChargerBtn = popupEl.querySelector('#addChargerBtn');
+      const addChargerInput = popupEl.querySelector('#addChargerSerial');
+      if (addChargerBtn && addChargerInput) {
+        addChargerBtn.addEventListener('click', async () => {
+          const serial = addChargerInput.value.trim();
+          const success = await addEquipmentToSkiArea(skiAreaMarker, skiAreaData, serial, 'charger');
+          if (success) {
+            addChargerInput.value = '';
+            refreshSkiAreaEquipmentTab(popupEl, skiAreaData, skiAreaMarker);
+          }
+        });
+        
+        addChargerInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addChargerBtn.click();
+          }
+        });
+      }
+      
+      // Remove equipment buttons
+      const removeButtons = popupEl.querySelectorAll('.remove-equipment-btn');
+      removeButtons.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const serial = btn.dataset.serial;
+          const type = btn.dataset.type;
+          
+          if (!confirm(`Are you sure you want to remove ${type} ${serial} from this ski area?`)) {
+            return;
+          }
+          
+          const success = await removeEquipmentFromSkiArea(skiAreaMarker, skiAreaData, serial, type);
+          if (success) {
+            refreshSkiAreaEquipmentTab(popupEl, skiAreaData, skiAreaMarker);
+          }
+        });
+      });
+    }
+
+    // --- Refresh Ski Area Equipment Tab ---
+    function refreshSkiAreaEquipmentTab(popupEl, skiAreaData, skiAreaMarker) {
+      const contentEl = popupEl.querySelector('#skiAreaEquipmentContent');
+      if (contentEl) {
+        contentEl.innerHTML = renderSkiAreaEquipmentTab(skiAreaData);
+        setupSkiAreaEquipmentHandlers(popupEl, skiAreaData, skiAreaMarker);
+      }
     }
 
     // --- Marker Management ---
