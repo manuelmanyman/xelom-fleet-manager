@@ -39,14 +39,14 @@
       display: flex; 
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 0;
       font-size: 18px;
       position: relative;
       z-index: 1001;
       background: black;
     }
     
-    h1 span:first-child { color: #ffcc00; }
+    h1 span:first-child { color: #ffcc00; margin-right: 0; }
     
     #map { 
       height: calc(100vh - 52px);
@@ -228,6 +228,7 @@
       padding: 16px;
       padding-top: 60px;
       padding-bottom: 100px;
+      min-width: 0;
     }
     
     @media (min-width: 600px) {
@@ -235,6 +236,7 @@
         padding: 24px;
         padding-top: 24px;
         padding-bottom: 24px;
+        min-width: 0;
       }
     }
     
@@ -261,18 +263,23 @@
     @media (min-width: 600px) {
       .custom-popup .close-btn {
         position: absolute;
-        background: none;
-        border: none;
-        width: auto;
-        height: auto;
+        top: 18px;
+        right: 22px;
+        background: #121212;
+        border: 2px solid #ffcc00;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       }
     }
     
+    /* Worker/Charger/Groomer popup padding fix */
     .popup-form {
       background: #121212;
       color: #f1f1f1;
       font-size: 15px;
-      padding: 0;
+      padding: 12px;
       border-radius: 12px;
       box-sizing: border-box;
       border: none;
@@ -1512,6 +1519,9 @@
                   </select>
                   <label>Blade Serial</label><input id="blade" value="${data.blade||""}">
                   <label>Tiller Serial</label><input id="tiller" value="${data.tiller||""}">
+                  <label>Track Type</label><input id="trackType" value="${data.trackType||""}">
+                  <label>Track Serial Number</label><input id="trackSerial" value="${data.trackSerial||""}">
+                  <label>Build Year</label><input id="buildYear" type="number" min="1990" max="2099" value="${data.buildYear||""}">
                   <label>Status</label>
                   <select id="status">
                     <option ${status==="Working"?"selected":""}>Working</option>
@@ -1535,6 +1545,14 @@
                   <div id="mechanicPhoneLink" class="phone-link"></div>
                 </div>
               </div>
+              ${(data.trackType || data.trackSerial || data.buildYear) ? `
+              <div class="section-title">🔧 Track &amp; Build Info</div>
+              <div style="background: #1a1a1a; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                ${data.trackType ? `<div style="margin-bottom: 6px;"><strong style="color:#ffcc00;">Track Type:</strong> ${escapeHtml(data.trackType)}</div>` : ''}
+                ${data.trackSerial ? `<div style="margin-bottom: 6px;"><strong style="color:#ffcc00;">Track Serial:</strong> ${escapeHtml(data.trackSerial)}</div>` : ''}
+                ${data.buildYear ? `<div><strong style="color:#ffcc00;">Build Year:</strong> ${escapeHtml(String(data.buildYear))}</div>` : ''}
+              </div>
+              ` : ''}
             </div>
             
             <!-- Tab 2: Location -->
@@ -1586,12 +1604,17 @@
       
       if (type === 'charger') {
         data.locationHistory = data.locationHistory || [];
+        data.activeIssue = data.activeIssue || null;
+        data.archivedIssues = data.archivedIssues || [];
+        
+        const status = data.status || "Working";
         
         formHtml = `
           <div class="popup-inner">
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
+              <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
             <!-- Tab 1: General -->
@@ -1606,6 +1629,11 @@
                 <label>Serial</label><input id="serial" value="${data.serial||""}">
                 <label>SIM PIN</label><input id="pin" value="${data.pin||""}">
                 <label>SIM Serial</label><input id="sim" value="${data.sim||""}">
+                <label>Status</label>
+                <select id="status">
+                  <option ${status==="Working"?"selected":""}>Working</option>
+                  <option ${status==="Issue"?"selected":""}>Issue</option>
+                </select>
               </div>
             </div>
             
@@ -1613,6 +1641,13 @@
             <div class="groomer-tab-content" id="tab-location">
               <div id="locationSection">
                 ${renderLocationSection(data, type)}
+              </div>
+            </div>
+            
+            <!-- Tab 3: Issues -->
+            <div class="groomer-tab-content" id="tab-issues">
+              <div id="issueContent">
+                ${renderIssueContent(data)}
               </div>
             </div>
             
@@ -1733,6 +1768,20 @@
       
       if (type === 'charger') {
         setupLocationChangeHandler(popupEl, data, marker);
+        setupIssueHandlers(popupEl, data, marker);
+        
+        // Status change handler for charger
+        const statusSelect = popupEl.querySelector('#status');
+        if (statusSelect) {
+          statusSelect.addEventListener('change', () => {
+            if (statusSelect.value === "Issue" && !data.activeIssue) {
+              popupEl.querySelectorAll('.groomer-tab').forEach(t => t.classList.remove('active'));
+              popupEl.querySelector('.groomer-tab[data-tab="issues"]').classList.add('active');
+              popupEl.querySelectorAll('.groomer-tab-content').forEach(c => c.classList.remove('active'));
+              popupEl.querySelector('#tab-issues').classList.add('active');
+            }
+          });
+        }
       }
       
       if (type === 'skiarea') {
@@ -1782,11 +1831,41 @@
             values.location = data.location || '';
             values.locationAddress = data.locationAddress || '';
             values.locationStartDate = data.locationStartDate || null;
+            values.activeIssue = data.activeIssue || null;
+            values.archivedIssues = data.archivedIssues || [];
           }
           
           if (type === 'skiarea') {
             values.equipment = data.equipment || [];
             values.archive = data.archive || [];
+          }
+          
+          // Handle bi-directional sync for equipment (groomer/charger) when ski area name changes
+          if (type === 'groomer' || type === 'charger') {
+            const oldSkiAreaName = data.skiAreaName || data.location || '';
+            const newSkiAreaName = values.skiAreaName || '';
+            const newAddress = values.skiAreaAddress || '';
+            const serial = values.serial || '';
+            
+            // If ski area name changed, sync with ski areas
+            if (oldSkiAreaName !== newSkiAreaName || (!data.locationStartDate && newSkiAreaName)) {
+              await syncEquipmentToSkiArea(
+                marker.options.markerId,
+                type,
+                serial,
+                oldSkiAreaName,
+                newSkiAreaName,
+                newAddress
+              );
+              
+              // Update location fields for new assignment
+              if (newSkiAreaName && !data.locationStartDate) {
+                values.locationStartDate = new Date().toISOString();
+                values.skiAreaAssignedDate = values.locationStartDate;
+                values.location = newSkiAreaName;
+                values.locationAddress = newAddress;
+              }
+            }
           }
           
           await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
@@ -2227,6 +2306,68 @@
       return true;
     }
 
+    // --- Sync equipment to ski area when saved with new location ---
+    async function syncEquipmentToSkiArea(equipmentMarkerId, equipmentType, serial, oldSkiAreaName, newSkiAreaName, newAddress) {
+      // Skip if no serial
+      if (!serial) return;
+      
+      // Handle removal from old ski area
+      if (oldSkiAreaName && oldSkiAreaName !== newSkiAreaName) {
+        for (const id in allMarkersData) {
+          const m = allMarkersData[id];
+          if (m.type === 'skiarea' && m.data && m.data.name === oldSkiAreaName) {
+            await removeEquipmentFromSkiAreaBySerial(id, serial, equipmentType, true);
+            break;
+          }
+        }
+      }
+      
+      // Handle addition to new ski area
+      if (newSkiAreaName && newSkiAreaName !== oldSkiAreaName) {
+        for (const id in allMarkersData) {
+          const m = allMarkersData[id];
+          if (m.type === 'skiarea' && m.data && m.data.name === newSkiAreaName) {
+            const skiAreaData = m.data;
+            skiAreaData.equipment = skiAreaData.equipment || [];
+            skiAreaData.archive = skiAreaData.archive || [];
+            
+            // Check if already has this equipment
+            const existingAssignment = skiAreaData.equipment.find(
+              eq => eq.serial === serial && eq.type === equipmentType && !eq.endDate
+            );
+            
+            if (!existingAssignment) {
+              const now = new Date().toISOString();
+              
+              // Add to equipment list
+              skiAreaData.equipment.push({
+                serial: serial,
+                type: equipmentType,
+                startDate: now,
+                endDate: null
+              });
+              
+              // Add to archive
+              skiAreaData.archive.unshift({
+                type: 'equipment_added',
+                equipmentType: equipmentType,
+                serial: serial,
+                date: now,
+                note: 'Added ' + equipmentType + ' ' + serial + ' to ski area'
+              });
+              
+              // Save the ski area marker
+              const skiAreaMarker = markersMap[id];
+              if (skiAreaMarker) {
+                await saveMarker(id, 'skiarea', skiAreaMarker.getLatLng(), skiAreaData);
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+
     // --- Add equipment to ski area ---
     async function addEquipmentToSkiArea(skiAreaMarker, skiAreaData, serial, equipmentType) {
       if (!serial || !serial.trim()) {
@@ -2501,6 +2642,11 @@
     };
 
     window.removeAllMarkers = async function() {
+      const password = prompt('Enter password to remove all markers:');
+      if (password !== '1111') {
+        alert('Incorrect password');
+        return;
+      }
       if (!confirm('Are you sure you want to remove ALL markers? This cannot be undone.')) return;
       for (const id in markersMap) {
         await removeMarker(id);
