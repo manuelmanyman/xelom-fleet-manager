@@ -198,28 +198,6 @@
       transform: scale(1.1);
     }
     
-    /* Ski Area placeholder icon */
-    .toolbar .skiarea-icon {
-      width: 52px; 
-      height: 52px;
-      background: #121212;
-      border: 2px solid #ffcc00;
-      border-radius: 10px;
-      cursor: grab;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-    }
-    
-    .toolbar .skiarea-icon:active {
-      cursor: grabbing;
-      transform: scale(1.1);
-    }
-    
     /* Custom Popup - Mobile Optimized */
     .custom-popup {
       display: none;
@@ -1097,7 +1075,7 @@
     <img src="groomer.png" id="drag-groomer" data-type="groomer" title="Snow Groomer" alt="Groomer" />
     <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger" />
     <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker" />
-    <div class="skiarea-icon" id="drag-skiarea" data-type="skiarea" title="Ski Area">⛷️</div>
+    <img src="skiareaicon192.png" id="drag-skiarea" data-type="skiarea" title="Ski Area" alt="Ski Area" />
   </div>
   <div id="customPopup" class="custom-popup">
     <button class="close-btn" onclick="closeCustomPopup()">&times;</button>
@@ -1121,13 +1099,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Custom ski area icon using divIcon
-    const skiAreaDivIcon = L.divIcon({
-      html: '<div style="width:64px;height:64px;background:#121212;border:2px solid #ffcc00;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:32px;">⛷️</div>',
+    // Custom ski area icon using image
+    const skiAreaIcon = L.icon({
+      iconUrl: 'skiareaicon192.png',
       iconSize: [64, 64],
       iconAnchor: [32, 54],
-      popupAnchor: [0, -56],
-      className: ''
+      popupAnchor: [0, -56]
     });
 
     const icons = {
@@ -1135,7 +1112,7 @@
       groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       worker: L.icon({ iconUrl: 'van.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
-      skiarea: skiAreaDivIcon
+      skiarea: skiAreaIcon
     };
 
     function makeId() {
@@ -1156,7 +1133,7 @@
     let dragType = null;
     let touchDragClone = null;
     
-    const toolbarItems = document.querySelectorAll('.toolbar img, .toolbar .skiarea-icon');
+    const toolbarItems = document.querySelectorAll('.toolbar img');
     
     toolbarItems.forEach(item => {
       if (item.tagName === 'IMG') item.setAttribute('draggable', 'true');
@@ -1524,6 +1501,8 @@
                   </select>
                   <label>Blade Serial</label><input id="blade" value="${escapeHtml(data.blade||"")}">
                   <label>Tiller Serial</label><input id="tiller" value="${escapeHtml(data.tiller||"")}">
+                  <label>Track Type</label><input id="trackType" value="${escapeHtml(data.trackType||"")}">
+                  <label>Track Serial Number</label><input id="trackSerial" value="${escapeHtml(data.trackSerial||"")}">
                   <label>Status</label>
                   <select id="status">
                     <option ${status==="Working"?"selected":""}>Working</option>
@@ -1583,12 +1562,15 @@
       
       if (type === 'charger') {
         data.locationHistory = data.locationHistory || [];
+        data.activeIssue = data.activeIssue || null;
+        data.archivedIssues = data.archivedIssues || [];
         
         formHtml = `
           <div class="popup-inner">
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
+              <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
             <div class="groomer-tab-content active" id="tab-general">
@@ -1607,6 +1589,10 @@
             
             <div class="groomer-tab-content" id="tab-location">
               <div id="locationSection">${renderLocationSection(data, type)}</div>
+            </div>
+            
+            <div class="groomer-tab-content" id="tab-issues">
+              <div id="issueContent">${renderIssueContent(data)}</div>
             </div>
             
             <div class="popup-actions">
@@ -1687,7 +1673,7 @@
                     '<div class="no-issue-msg">No equipment assigned</div>' :
                     data.equipment.map((eq, index) => `
                       <div class="equipment-item" data-index="${index}">
-                        <div class="eq-icon">${eq.type === 'groomer' ? '🚜' : '⚡'}</div>
+                        <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
                         <div class="equipment-info">
                           <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
                           <div class="equipment-type">${eq.type}</div>
@@ -1722,7 +1708,7 @@
                     '<div class="no-issue-msg">No equipment history</div>' :
                     data.archivedEquipment.map(eq => `
                       <div class="equipment-item archived">
-                        <div class="eq-icon">${eq.type === 'groomer' ? '🚜' : '⚡'}</div>
+                        <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
                         <div class="equipment-info">
                           <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
                           <div class="equipment-type">${eq.type}</div>
@@ -1783,6 +1769,7 @@
       
       if (type === 'charger') {
         setupLocationChangeHandler(popupEl, data, marker);
+        setupChargerIssueHandlers(popupEl, data, marker);
       }
       
       if (type === 'skiarea') {
@@ -1821,6 +1808,8 @@
           if (type === 'charger') {
             values.locationHistory = data.locationHistory || [];
             values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
+            values.activeIssue = data.activeIssue || null;
+            values.archivedIssues = data.archivedIssues || [];
           }
           
           if (type === 'skiarea') {
@@ -1934,7 +1923,7 @@
           '<div class="no-issue-msg">No equipment assigned</div>' :
           data.equipment.map((eq, index) => `
             <div class="equipment-item" data-index="${index}">
-              <div class="eq-icon">${eq.type === 'groomer' ? '🚜' : '⚡'}</div>
+              <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
               <div class="equipment-info">
                 <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
                 <div class="equipment-type">${eq.type}</div>
@@ -1953,7 +1942,7 @@
           '<div class="no-issue-msg">No equipment history</div>' :
           data.archivedEquipment.map(eq => `
             <div class="equipment-item archived">
-              <div class="eq-icon">${eq.type === 'groomer' ? '🚜' : '⚡'}</div>
+              <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
               <div class="equipment-info">
                 <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
                 <div class="equipment-type">${eq.type}</div>
@@ -2261,6 +2250,98 @@
           });
         });
       });
+    }
+
+    // Charger issue handlers
+    function setupChargerIssueHandlers(popupEl, data, marker) {
+      const createBtn = popupEl.querySelector('#createIssueBtn');
+      if (createBtn) {
+        createBtn.addEventListener('click', () => {
+          const problem = popupEl.querySelector('#newIssueProblem')?.value.trim();
+          const responsible = popupEl.querySelector('#newIssueResponsible')?.value.trim();
+          
+          if (!problem) {
+            alert('Please describe the problem');
+            return;
+          }
+          
+          data.activeIssue = {
+            problem: problem,
+            responsible: responsible,
+            createdAt: new Date().toISOString(),
+            updates: []
+          };
+          
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupChargerIssueHandlers(popupEl, data, marker);
+        });
+      }
+      
+      const addUpdateBtn = popupEl.querySelector('#addUpdateBtn');
+      if (addUpdateBtn) {
+        const updateInput = popupEl.querySelector('#newUpdateInput');
+        
+        addUpdateBtn.addEventListener('click', () => {
+          const text = updateInput?.value.trim();
+          if (!text) return;
+          
+          data.activeIssue.updates = data.activeIssue.updates || [];
+          data.activeIssue.updates.push({
+            time: new Date().toISOString(),
+            text: text
+          });
+          
+          updateInput.value = '';
+          
+          const updatesContainer = popupEl.querySelector('#issueUpdates');
+          updatesContainer.innerHTML = renderIssueUpdates(data.activeIssue.updates);
+        });
+        
+        updateInput?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addUpdateBtn.click();
+          }
+        });
+      }
+      
+      const resolveBtn = popupEl.querySelector('#resolveIssueBtn');
+      if (resolveBtn) {
+        resolveBtn.addEventListener('click', () => {
+          const solution = prompt('Enter the solution or resolution:');
+          if (!solution) return;
+          
+          data.activeIssue.solution = solution;
+          data.activeIssue.resolvedAt = new Date().toISOString();
+          
+          data.archivedIssues = data.archivedIssues || [];
+          data.archivedIssues.unshift(data.activeIssue);
+          
+          data.activeIssue = null;
+          
+          const issueContent = popupEl.querySelector('#issueContent');
+          issueContent.innerHTML = renderIssueContent(data);
+          setupChargerIssueHandlers(popupEl, data, marker);
+          
+          alert('Issue resolved and archived!');
+        });
+      }
+      
+      const showArchiveBtn = popupEl.querySelector('#showArchiveBtn');
+      if (showArchiveBtn) {
+        showArchiveBtn.addEventListener('click', () => {
+          const container = popupEl.querySelector('#archiveContainer');
+          if (container.innerHTML) {
+            container.innerHTML = '';
+            showArchiveBtn.textContent = `📁 View Archive (${data.archivedIssues?.length || 0})`;
+          } else {
+            container.innerHTML = renderArchiveList(data.archivedIssues || []);
+            showArchiveBtn.textContent = '📁 Hide Archive';
+            setupArchiveItemHandlers(popupEl, data);
+          }
+        });
+      }
     }
 
     // Marker Management
