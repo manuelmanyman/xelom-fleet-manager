@@ -46,7 +46,14 @@
       background: black;
     }
     
-    h1 span:first-child { color: #ffcc00; }
+    h1 .title-text {
+      display: inline;
+      margin-right: 8px;
+    }
+    
+    h1 .title-text .highlight { 
+      color: #ffcc00; 
+    }
     
     #map { 
       height: calc(100vh - 52px);
@@ -261,10 +268,20 @@
     @media (min-width: 600px) {
       .custom-popup .close-btn {
         position: absolute;
-        background: none;
-        border: none;
-        width: auto;
-        height: auto;
+        top: 16px;
+        right: 20px;
+        background: #121212;
+        border: 2px solid #ffcc00;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        font-size: 28px;
+        cursor: pointer;
+      }
+      
+      .custom-popup .close-btn:hover {
+        background: #ffcc00;
+        color: #121212;
       }
     }
     
@@ -1064,7 +1081,7 @@
 </head>
 <body>
   <h1>
-    <span>X</span>elom Fleet Manager
+    <span class="title-text"><span class="highlight">X</span>elom Fleet Manager</span>
     <input id="searchBox" class="search" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button id="filterBtn" class="filter-btn" type="button">Filter</button>
   </h1>
@@ -1504,6 +1521,7 @@
                 </div>
                 <div class="groomer-popup-fields">
                   <label>Serial Number</label><input id="serial" value="${data.serial||""}">
+                  <label>Build Year</label><input id="buildYear" type="number" placeholder="e.g. 2023" value="${data.buildYear||""}">
                   <label>Size</label>
                   <select id="size">
                     <option ${data.size==="280"?"selected":""}>280</option>
@@ -1586,12 +1604,15 @@
       
       if (type === 'charger') {
         data.locationHistory = data.locationHistory || [];
+        data.activeIssue = data.activeIssue || null;
+        data.archivedIssues = data.archivedIssues || [];
         
         formHtml = `
           <div class="popup-inner">
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
+              <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
             <!-- Tab 1: General -->
@@ -1613,6 +1634,13 @@
             <div class="groomer-tab-content" id="tab-location">
               <div id="locationSection">
                 ${renderLocationSection(data, type)}
+              </div>
+            </div>
+            
+            <!-- Tab 3: Issues -->
+            <div class="groomer-tab-content" id="tab-issues">
+              <div id="issueContent">
+                ${renderIssueContent(data)}
               </div>
             </div>
             
@@ -1733,6 +1761,7 @@
       
       if (type === 'charger') {
         setupLocationChangeHandler(popupEl, data, marker);
+        setupIssueHandlers(popupEl, data, marker);
       }
       
       if (type === 'skiarea') {
@@ -1755,6 +1784,11 @@
               values[i.id] = i.value;
             }
           });
+          
+          // Store old location for comparison
+          const oldSkiAreaName = data.skiAreaName || data.location || '';
+          const newSkiAreaName = values.skiAreaName || '';
+          const newSkiAreaAddress = values.skiAreaAddress || '';
           
           if (type === 'groomer') {
             values.software = {
@@ -1782,11 +1816,28 @@
             values.location = data.location || '';
             values.locationAddress = data.locationAddress || '';
             values.locationStartDate = data.locationStartDate || null;
+            values.activeIssue = data.activeIssue || null;
+            values.archivedIssues = data.archivedIssues || [];
           }
           
           if (type === 'skiarea') {
             values.equipment = data.equipment || [];
             values.archive = data.archive || [];
+          }
+          
+          // Handle bi-directional location sync for groomer/charger
+          if ((type === 'groomer' || type === 'charger') && oldSkiAreaName !== newSkiAreaName) {
+            // Update location sync with ski areas
+            await updateEquipmentLocation(marker.options.markerId, newSkiAreaName, newSkiAreaAddress, false);
+            // After location sync, the marker data is already saved, so we update local values
+            values.location = newSkiAreaName;
+            values.locationAddress = newSkiAreaAddress;
+            values.skiAreaName = newSkiAreaName;
+            values.skiAreaAddress = newSkiAreaAddress;
+            if (newSkiAreaName) {
+              values.locationStartDate = new Date().toISOString();
+              values.skiAreaAssignedDate = values.locationStartDate;
+            }
           }
           
           await saveMarker(marker.options.markerId, marker.options.markerType, marker.getLatLng(), values);
@@ -2109,6 +2160,61 @@
       return div.innerHTML;
     }
 
+    // --- Issue helper functions for groomers and chargers ---
+    // Add a new issue to a marker (creates activeIssue)
+    function addIssueToMarker(markerId, problemText, responsible = '') {
+      const markerData = allMarkersData[markerId];
+      if (!markerData) return false;
+      
+      const data = markerData.data || {};
+      data.activeIssue = {
+        id: 'issue_' + Date.now(),
+        problem: problemText,
+        responsible: responsible,
+        createdAt: new Date().toISOString(),
+        updates: []
+      };
+      data.archivedIssues = data.archivedIssues || [];
+      
+      // Update the marker
+      allMarkersData[markerId].data = data;
+      return true;
+    }
+
+    // Resolve an issue (moves activeIssue to archivedIssues)
+    function resolveIssue(markerId, issueId, solutionText) {
+      const markerData = allMarkersData[markerId];
+      if (!markerData) return false;
+      
+      const data = markerData.data || {};
+      if (!data.activeIssue) return false;
+      
+      // Add solution and archive
+      data.activeIssue.solution = solutionText;
+      data.activeIssue.resolvedAt = new Date().toISOString();
+      
+      data.archivedIssues = data.archivedIssues || [];
+      data.archivedIssues.unshift(data.activeIssue);
+      
+      data.activeIssue = null;
+      
+      // Update the marker
+      allMarkersData[markerId].data = data;
+      return true;
+    }
+
+    // Render the issues tab content for a marker
+    function renderMarkerIssuesTab(marker) {
+      const markerData = allMarkersData[marker.options.markerId];
+      if (!markerData) return '';
+      
+      const data = markerData.data || {};
+      data.activeIssue = data.activeIssue || null;
+      data.archivedIssues = data.archivedIssues || [];
+      
+      return renderIssueContent(data);
+    }
+
     // --- Ski Area Equipment Tab Rendering ---
     function renderSkiAreaEquipmentTab(skiAreaData) {
       const currentEquipment = (skiAreaData.equipment || []).filter(eq => !eq.endDate);
@@ -2192,32 +2298,143 @@
       return null;
     }
 
-    // --- Update equipment location (sync equipment's location fields and archive) ---
-    async function updateEquipmentLocation(equipmentMarkerId, newLocation, newAddress) {
+    // --- Find ski area by name ---
+    function findSkiAreaByName(name) {
+      if (!name) return null;
+      for (const id in allMarkersData) {
+        const m = allMarkersData[id];
+        if (m.type === 'skiarea' && m.data && m.data.name === name) {
+          return { markerId: id, markerData: m, marker: markersMap[id] };
+        }
+      }
+      return null;
+    }
+
+    // --- Update equipment location (robust bi-directional sync) ---
+    // Updates both the equipment marker's location and the ski area's equipment lists
+    async function updateEquipmentLocation(equipmentMarkerId, newLocationName, newAddress, skipOldSkiAreaUpdate = false) {
       const equipmentData = allMarkersData[equipmentMarkerId];
       if (!equipmentData) return false;
       
       const marker = markersMap[equipmentMarkerId];
       const data = equipmentData.data || {};
+      const serial = data.serial;
+      const equipmentType = equipmentData.type;
+      const oldLocationName = data.location || data.skiAreaName || '';
       
-      // Archive the old location if there was one
-      if (data.location || data.locationAddress) {
+      // Skip if location didn't change
+      if (oldLocationName === newLocationName && (data.locationAddress || data.skiAreaAddress || '') === newAddress) {
+        return true;
+      }
+      
+      const now = new Date().toISOString();
+      
+      // Step 1: End assignment on old ski area (if exists and not skipping)
+      if (!skipOldSkiAreaUpdate && oldLocationName && serial) {
+        const oldSkiArea = findSkiAreaByName(oldLocationName);
+        if (oldSkiArea) {
+          const oldData = oldSkiArea.markerData.data || {};
+          oldData.equipment = oldData.equipment || [];
+          oldData.archive = oldData.archive || [];
+          
+          // Find and end the current assignment
+          const assignmentIndex = oldData.equipment.findIndex(
+            eq => eq.serial === serial && eq.type === equipmentType && !eq.endDate
+          );
+          
+          if (assignmentIndex !== -1) {
+            oldData.equipment[assignmentIndex].endDate = now;
+            
+            // Add archive entry
+            oldData.archive.unshift({
+              type: 'equipment_removed',
+              equipmentType: equipmentType,
+              serial: serial,
+              date: now,
+              note: `Removed ${equipmentType} ${serial} from ski area (moved to ${newLocationName || 'unassigned'})`
+            });
+            
+            // Save old ski area
+            await saveMarker(oldSkiArea.markerId, 'skiarea', oldSkiArea.marker.getLatLng(), oldData);
+            
+            // Re-render old ski area's equipment tab if its popup is open
+            if (currentPopupMarker && currentPopupMarker.options.markerId === oldSkiArea.markerId) {
+              const popupEl = document.getElementById('customPopupContent');
+              const contentEl = popupEl.querySelector('#skiAreaEquipmentContent');
+              if (contentEl) {
+                contentEl.innerHTML = renderSkiAreaEquipmentTab(oldData);
+                setupSkiAreaEquipmentHandlers(popupEl, oldData, oldSkiArea.marker);
+              }
+            }
+          }
+        }
+      }
+      
+      // Step 2: Add to new ski area's equipment list (if new location specified)
+      if (newLocationName && serial) {
+        const newSkiArea = findSkiAreaByName(newLocationName);
+        if (newSkiArea) {
+          const newData = newSkiArea.markerData.data || {};
+          newData.equipment = newData.equipment || [];
+          newData.archive = newData.archive || [];
+          
+          // Check if already assigned
+          const existingAssignment = newData.equipment.find(
+            eq => eq.serial === serial && eq.type === equipmentType && !eq.endDate
+          );
+          
+          if (!existingAssignment) {
+            // Add new assignment
+            newData.equipment.push({
+              serial: serial,
+              type: equipmentType,
+              startDate: now,
+              endDate: null
+            });
+            
+            // Add archive entry
+            newData.archive.unshift({
+              type: 'equipment_added',
+              equipmentType: equipmentType,
+              serial: serial,
+              date: now,
+              note: `Added ${equipmentType} ${serial} to ski area`
+            });
+            
+            // Save new ski area
+            await saveMarker(newSkiArea.markerId, 'skiarea', newSkiArea.marker.getLatLng(), newData);
+            
+            // Re-render new ski area's equipment tab if its popup is open
+            if (currentPopupMarker && currentPopupMarker.options.markerId === newSkiArea.markerId) {
+              const popupEl = document.getElementById('customPopupContent');
+              const contentEl = popupEl.querySelector('#skiAreaEquipmentContent');
+              if (contentEl) {
+                contentEl.innerHTML = renderSkiAreaEquipmentTab(newData);
+                setupSkiAreaEquipmentHandlers(popupEl, newData, newSkiArea.marker);
+              }
+            }
+          }
+        }
+      }
+      
+      // Step 3: Archive the old location on the equipment marker
+      if (oldLocationName || (data.locationAddress || data.skiAreaAddress)) {
         data.locationArchive = data.locationArchive || [];
         data.locationArchive.unshift({
-          location: data.location || '',
-          locationAddress: data.locationAddress || '',
-          startDate: data.locationStartDate || new Date().toISOString(),
-          endDate: new Date().toISOString()
+          location: oldLocationName,
+          locationAddress: data.locationAddress || data.skiAreaAddress || '',
+          startDate: data.locationStartDate || data.skiAreaAssignedDate || now,
+          endDate: now
         });
       }
       
-      // Update to new location
-      data.location = newLocation;
+      // Step 4: Update equipment marker with new location
+      data.location = newLocationName;
       data.locationAddress = newAddress;
-      data.locationStartDate = new Date().toISOString();
+      data.locationStartDate = newLocationName ? now : null;
       
       // Also update the legacy skiAreaName/skiAreaAddress fields for compatibility
-      data.skiAreaName = newLocation;
+      data.skiAreaName = newLocationName;
       data.skiAreaAddress = newAddress;
       data.skiAreaAssignedDate = data.locationStartDate;
       
@@ -2225,6 +2442,22 @@
       await saveMarker(equipmentMarkerId, equipmentData.type, L.latLng(equipmentData.lat, equipmentData.lng), data);
       
       return true;
+    }
+
+    // --- Save equipment with location sync ---
+    // Called when saving a groomer/charger popup to handle location changes
+    async function saveEquipmentWithLocationSync(markerId, type, latlng, newValues, oldValues) {
+      const oldLocation = oldValues.skiAreaName || oldValues.location || '';
+      const newLocation = newValues.skiAreaName || '';
+      const newAddress = newValues.skiAreaAddress || '';
+      
+      // Check if location changed
+      if (oldLocation !== newLocation) {
+        await updateEquipmentLocation(markerId, newLocation, newAddress);
+      }
+      
+      // Save the marker
+      await saveMarker(markerId, type, latlng, newValues);
     }
 
     // --- Add equipment to ski area ---
@@ -2291,8 +2524,8 @@
         note: `Added ${equipmentType} ${serial} to ski area`
       });
       
-      // Update equipment's location to point to this ski area
-      await updateEquipmentLocation(equipment.markerId, skiAreaName, skiAreaAddress);
+      // Update equipment's location to point to this ski area (skip old ski area update as we already handled it above)
+      await updateEquipmentLocation(equipment.markerId, skiAreaName, skiAreaAddress, true);
       
       // Save the ski area marker
       await saveMarker(skiAreaMarker.options.markerId, 'skiarea', skiAreaMarker.getLatLng(), skiAreaData);
@@ -2351,7 +2584,8 @@
       if (!skipEquipmentUpdate) {
         const equipment = findEquipmentBySerial(serial, equipmentType);
         if (equipment) {
-          await updateEquipmentLocation(equipment.markerId, '', '');
+          // Skip old ski area update since we're already handling the ski area here
+          await updateEquipmentLocation(equipment.markerId, '', '', true);
         }
       }
       
@@ -2501,7 +2735,20 @@
     };
 
     window.removeAllMarkers = async function() {
-      if (!confirm('Are you sure you want to remove ALL markers? This cannot be undone.')) return;
+      // Step 1: Password prompt
+      const password = prompt('Enter password to remove all markers:');
+      if (password !== '1111') {
+        if (password !== null) {
+          alert('Incorrect password. Removal cancelled.');
+        }
+        return;
+      }
+      
+      // Step 2: Confirmation dialog
+      if (!confirm('WARNING: This will permanently delete ALL markers. This action cannot be undone. Are you sure you want to proceed?')) {
+        return;
+      }
+      
       for (const id in markersMap) {
         await removeMarker(id);
         map.removeLayer(markersMap[id]);
