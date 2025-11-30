@@ -1521,7 +1521,7 @@
                 </div>
                 <div class="groomer-popup-fields">
                   <label>Serial Number</label><input id="serial" value="${data.serial||""}">
-                  <label>Build Year</label><input id="buildYear" type="number" placeholder="e.g. 2023" value="${data.buildYear||""}">
+                  <label>Build Year</label><input id="buildYear" type="number" placeholder="e.g. 2023" min="1950" max="2099" value="${data.buildYear||""}">
                   <label>Size</label>
                   <select id="size">
                     <option ${data.size==="280"?"selected":""}>280</option>
