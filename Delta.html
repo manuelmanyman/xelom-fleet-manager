@@ -183,6 +183,7 @@
     .toolbar img {
       width: 52px; 
       height: 52px;
+      /* Fixed size for toolbar icons - map marker icons use dynamic sizing */
       background: #121212;
       border: 2px solid #ffcc00;
       border-radius: 10px;
@@ -1612,6 +1613,17 @@
       div.textContent = text;
       return div.innerHTML;
     }
+    
+    // Generate year options from 2023 to current year
+    function generateYearOptions(selectedYear) {
+      const currentYear = new Date().getFullYear();
+      let options = '';
+      for (let year = 2023; year <= currentYear; year++) {
+        const selected = String(selectedYear) === String(year) ? 'selected' : '';
+        options += `<option ${selected}>${year}</option>`;
+      }
+      return options;
+    }
 
     // Update ski area when equipment location changes
     async function updateSkiAreaEquipment(oldSkiAreaName, newSkiAreaName, equipmentSerial, equipmentType) {
@@ -1847,15 +1859,7 @@
                   </select>
                   <label>Build Year</label>
                   <select id="buildYear">
-                    ${(() => {
-                      const currentYear = new Date().getFullYear();
-                      let options = '';
-                      for (let year = 2023; year <= currentYear; year++) {
-                        const selected = data.buildYear == year ? 'selected' : '';
-                        options += `<option ${selected}>${year}</option>`;
-                      }
-                      return options;
-                    })()}
+                    ${generateYearOptions(data.buildYear)}
                   </select>
                   <label>Blade Serial</label><input id="blade" value="${escapeHtml(data.blade||"")}">
                   <label>Tiller Serial</label><input id="tiller" value="${escapeHtml(data.tiller||"")}">
@@ -3051,7 +3055,8 @@
       
       // Populate build year options dynamically
       const buildYearSelect = document.getElementById('buildYearFilter');
-      if (buildYearSelect && buildYearSelect.options.length === 0) {
+      if (buildYearSelect) {
+        buildYearSelect.innerHTML = ''; // Clear existing options
         const currentYear = new Date().getFullYear();
         for (let year = 2023; year <= currentYear; year++) {
           const option = document.createElement('option');
@@ -3136,7 +3141,7 @@
         
         // Apply filters
         if (filterBySize && data.size !== selectedSize) continue;
-        if (filterByBuildYear && data.buildYear != selectedBuildYear) continue;
+        if (filterByBuildYear && String(data.buildYear) !== String(selectedBuildYear)) continue;
         if (filterByTrackType && data.trackType !== selectedTrackType) continue;
         
         // Add rework
