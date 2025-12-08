@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Xelom Fleet Manager</title>
+  <title>Xelom Fleet Manager - Eta</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -183,6 +183,7 @@
     .toolbar img {
       width: 52px; 
       height: 52px;
+      /* Fixed size for toolbar icons - map marker icons use dynamic sizing */
       background: #121212;
       border: 2px solid #ffcc00;
       border-radius: 10px;
@@ -194,6 +195,27 @@
     }
     
     .toolbar img:active {
+      cursor: grabbing;
+      transform: scale(1.1);
+    }
+    
+    .toolbar .warehouse-btn {
+      width: 52px;
+      height: 52px;
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 10px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    
+    .toolbar .warehouse-btn:active {
       cursor: grabbing;
       transform: scale(1.1);
     }
@@ -1044,6 +1066,280 @@
       opacity: 0.7;
       pointer-events: none;
     }
+    
+    /* Rework Modal Styles */
+    .rework-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 3000;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .rework-modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .rework-modal-content {
+      background: #121212;
+      border: 2px solid #ffcc00;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      margin: 20px;
+    }
+    
+    .rework-modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .rework-modal-header h3 {
+      margin: 0;
+      color: #ffcc00;
+    }
+    
+    .rework-modal-close {
+      background: none;
+      border: none;
+      color: #ffcc00;
+      font-size: 32px;
+      cursor: pointer;
+      line-height: 1;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .rework-modal-body {
+      padding: 20px;
+    }
+    
+    .rework-modal-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+    }
+    
+    .rework-modal-tab {
+      padding: 12px 24px;
+      background: #1e1e1e;
+      color: #888;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px 8px 0 0;
+      transition: all 0.2s;
+      flex: 1;
+      text-align: center;
+    }
+    
+    .rework-modal-tab.active {
+      background: #ffcc00;
+      color: #121212;
+    }
+    
+    .rework-modal-tab-content {
+      display: none;
+    }
+    
+    .rework-modal-tab-content.active {
+      display: block;
+    }
+    
+    .filter-checkbox-group {
+      margin: 16px 0;
+      padding: 12px;
+      background: #1e1e1e;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    
+    .filter-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .filter-checkbox-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #ffcc00;
+    }
+    
+    .filter-checkbox-item label {
+      color: #f1f1f1;
+      margin: 0;
+      cursor: pointer;
+    }
+    
+    .filter-select-container {
+      margin-top: 8px;
+      margin-left: 30px;
+      display: none;
+    }
+    
+    .filter-select-container.show {
+      display: block;
+    }
+    
+    .filter-select-container select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffcc00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    .rework-apply-btn {
+      background: #ffcc00;
+      color: #121212;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      width: 100%;
+      margin-top: 20px;
+    }
+    
+    .rework-apply-btn:hover {
+      background: #ffe066;
+    }
+    
+    .rework-archive-section {
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    
+    .rework-archive-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      color: #ffcc00;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .rework-archive-list {
+      margin-top: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .rework-completed-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      background: #1e1e1e;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #333;
+      opacity: 0.7;
+    }
+    
+    .rework-completed-item span {
+      flex: 1;
+      text-decoration: line-through;
+      color: #888;
+    }
+    
+    /* Equipment Group Styles */
+    .equipment-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: #1e1e1e;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .equipment-group:hover {
+      background: #2a2a2a;
+    }
+    
+    .equipment-group .eq-icon {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    
+    .equipment-group .eq-count {
+      color: #ffcc00;
+      font-weight: 600;
+    }
+    
+    .equipment-group .expand-arrow {
+      margin-left: auto;
+      color: #888;
+      transition: transform 0.2s;
+    }
+    
+    .equipment-group.expanded .expand-arrow {
+      transform: rotate(90deg);
+    }
+    
+    .equipment-group-items {
+      padding-left: 20px;
+      margin-bottom: 8px;
+    }
+    
+    .equipment-item-detail {
+      padding: 10px;
+      background: #252525;
+      border-left: 3px solid #ffcc00;
+      margin-bottom: 6px;
+      border-radius: 0 6px 6px 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .equipment-item-detail .detail-label {
+      color: #888;
+      font-size: 12px;
+      display: inline-block;
+      min-width: 80px;
+    }
+    
+    .equipment-item-detail .detail-value {
+      color: #f1f1f1;
+    }
   </style>
 </head>
 <body>
@@ -1058,6 +1354,7 @@
       <button aria-label="Settings" id="settingsBtn">&#9881;</button>
       <div class="dropdown-menu" id="settingsMenu">
         <button onclick="syncMarkers()">🔄 Sync</button>
+        <button onclick="openReworkModal()">➕ Add Rework</button>
         <button onclick="removeAllMarkers()">🗑️ Remove all</button>
       </div>
     </div>
@@ -1068,6 +1365,7 @@
         <label><input type="checkbox" id="layerCharger" checked> Chargers</label>
         <label><input type="checkbox" id="layerWorker" checked> Workers</label>
         <label><input type="checkbox" id="layerSkiarea" checked> Ski Areas</label>
+        <label><input type="checkbox" id="layerWarehouse" checked> Warehouses</label>
       </div>
     </div>
   </div>
@@ -1076,11 +1374,111 @@
     <img src="charger.png" id="drag-charger" data-type="charger" title="EV Charger" alt="Charger" />
     <img src="van.png" id="drag-worker" data-type="worker" title="Work Van" alt="Worker" />
     <img src="skiareaicon192.png" id="drag-skiarea" data-type="skiarea" title="Ski Area" alt="Ski Area" />
+    <img src="Warehouse.png" draggable="true" data-type="warehouse" alt="Warehouse" id="drag-warehouse" title="Warehouse" />
   </div>
   <div id="customPopup" class="custom-popup">
     <button class="close-btn" onclick="closeCustomPopup()">&times;</button>
     <div id="customPopupContent"></div>
   </div>
+  
+  <!-- Rework Modal -->
+  <div id="reworkModal" class="rework-modal">
+    <div class="rework-modal-content">
+      <div class="rework-modal-header">
+        <h3>Add Rework</h3>
+        <button class="rework-modal-close" onclick="closeReworkModal()">&times;</button>
+      </div>
+      <div class="rework-modal-body">
+        <div class="rework-modal-tabs">
+          <button class="rework-modal-tab active" data-rework-tab="groomers">Groomers</button>
+          <button class="rework-modal-tab" data-rework-tab="chargers">Chargers</button>
+        </div>
+        
+        <!-- Groomers Tab -->
+        <div class="rework-modal-tab-content active" id="rework-tab-groomers">
+          <div class="popup-form">
+            <label>Rework Name</label>
+            <input type="text" id="reworkNameGroomer" placeholder="Enter rework name...">
+            
+            <div class="filter-checkbox-group">
+              <div class="filter-checkbox-item">
+                <input type="checkbox" id="filterBySize">
+                <label for="filterBySize">By Size</label>
+              </div>
+              <div class="filter-select-container" id="sizeSelectContainer">
+                <select id="sizeFilter">
+                  <option>280</option>
+                  <option>320</option>
+                  <option>350</option>
+                </select>
+              </div>
+              
+              <div class="filter-checkbox-item">
+                <input type="checkbox" id="filterByBuildYear">
+                <label for="filterByBuildYear">By Build Year</label>
+              </div>
+              <div class="filter-select-container" id="buildYearSelectContainer">
+                <select id="buildYearFilter"></select>
+              </div>
+              
+              <div class="filter-checkbox-item">
+                <input type="checkbox" id="filterByCrossCountryTracks">
+                <label for="filterByCrossCountryTracks">By Cross Country Tracks</label>
+              </div>
+              <div class="filter-select-container" id="crossCountryTracksSelectContainer">
+                <select id="crossCountryTracksFilter">
+                  <option>None</option>
+                  <option>Track Plates</option>
+                  <option>Track Tiller</option>
+                  <option>Removed</option>
+                </select>
+              </div>
+              
+              <div class="filter-checkbox-item">
+                <input type="checkbox" id="filterByTrackType">
+                <label for="filterByTrackType">By Track Type</label>
+              </div>
+              <div class="filter-select-container" id="trackTypeSelectContainer">
+                <select id="trackTypeFilter">
+                  <option>None</option>
+                  <option>Rubber</option>
+                  <option>Aluminum</option>
+                  <option>High ALU</option>
+                </select>
+              </div>
+            </div>
+            
+            <button class="rework-apply-btn" onclick="applyGroomerRework()">Apply to Groomers</button>
+          </div>
+        </div>
+        
+        <!-- Chargers Tab -->
+        <div class="rework-modal-tab-content" id="rework-tab-chargers">
+          <div class="popup-form">
+            <label>Rework Name</label>
+            <input type="text" id="reworkNameCharger" placeholder="Enter rework name...">
+            
+            <div class="filter-checkbox-group">
+              <div class="filter-checkbox-item">
+                <input type="checkbox" id="filterByPower">
+                <label for="filterByPower">By Power</label>
+              </div>
+              <div class="filter-select-container" id="powerSelectContainer">
+                <select id="powerFilter">
+                  <option>150 kW</option>
+                  <option>30 kW</option>
+                  <option>Hypercharger</option>
+                </select>
+              </div>
+            </div>
+            
+            <button class="rework-apply-btn" onclick="applyChargerRework()">Apply to Chargers</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <script type="module">
     import * as L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -1107,13 +1505,69 @@
       popupAnchor: [0, -56]
     });
 
-    const icons = {
+    function getIconSize(zoom) {
+      const baseSize = 37;
+      const calculatedSize = baseSize + (zoom - 10) * 3;
+      const maxSize = 58;
+      return Math.min(calculatedSize, maxSize);
+    }
+
+    function createDynamicIcon(iconUrl) {
+      const zoom = map.getZoom();
+      const size = getIconSize(zoom);
+      return L.icon({
+        iconUrl: iconUrl,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size - 10],
+        popupAnchor: [0, -(size - 8)]
+      });
+    }
+    
+    function createEmojiIcon(emoji) {
+      const zoom = map.getZoom();
+      const size = getIconSize(zoom);
+      return L.divIcon({
+        html: `<div style="font-size: ${size * 0.7}px; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; background: #121212; border: 2px solid #ffcc00; border-radius: 50%;">${emoji}</div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size - 10],
+        popupAnchor: [0, -(size - 8)],
+        className: ''
+      });
+    }
+
+    let icons = {
       groomer: L.icon({ iconUrl: 'groomer.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       groomerissues: L.icon({ iconUrl: 'groomerissues.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       charger: L.icon({ iconUrl: 'charger.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
+      chargerissue: L.icon({ iconUrl: 'chargerissue.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       worker: L.icon({ iconUrl: 'van.png', iconSize:[64,64], iconAnchor:[32,54], popupAnchor:[0,-56] }),
       skiarea: skiAreaIcon
     };
+
+    function updateAllMarkerIcons() {
+      Object.values(markersMap).forEach(marker => {
+        const type = marker.options.markerType;
+        const markerData = allMarkersData[marker.options.markerId];
+        const data = markerData?.data || {};
+        
+        let iconUrl = '';
+        if (type === 'groomer') {
+          iconUrl = data.status === 'Issue' ? 'groomerissues.png' : 'groomer.png';
+        } else if (type === 'charger') {
+          iconUrl = data.status === 'Issue' ? 'chargerissue.png' : 'charger.png';
+        } else if (type === 'worker') {
+          iconUrl = 'van.png';
+        } else if (type === 'skiarea') {
+          iconUrl = 'skiareaicon192.png';
+        } else if (type === 'warehouse') {
+          iconUrl = 'Warehouse.png';
+        }
+        
+        if (iconUrl) {
+          marker.setIcon(createDynamicIcon(iconUrl));
+        }
+      });
+    }
 
     function makeId() {
       return 'm_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -1123,6 +1577,11 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+
+    // Update icon sizes on zoom
+    map.on('zoomend', () => {
+      updateAllMarkerIcons();
+    });
 
     let markersMap = {};
     let allMarkersData = {};
@@ -1267,6 +1726,165 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+    
+    // Get equipment icon/emoji based on type
+    function getEquipmentIcon(eq) {
+      if (eq.type === 'groomer') return 'groomer.png';
+      if (eq.type === 'charger') return 'charger.png';
+      if (eq.type === 'tiller' || eq.type === 'tillers') return 'tiller.png';
+      if (eq.type === 'blade' || eq.type === 'blades') return 'blade.png';
+      if (eq.type === 'tracks') return 'tracks.png';
+      if (eq.type === 'cross-country') return 'finisher.png';
+      return '📦';
+    }
+    
+    function getEquipmentDisplayInfo(eq) {
+      if (eq.type === 'tracks') {
+        return {
+          serial: eq.serial,
+          subtitle: eq.trackType || 'Tracks',
+          isImage: true
+        };
+      }
+      if (eq.type === 'cross-country') {
+        return {
+          serial: eq.serial,
+          subtitle: eq.trackType || 'Cross Country Tracks',
+          isImage: true
+        };
+      }
+      if (eq.type === 'tiller' || eq.type === 'tillers') {
+        return {
+          serial: eq.serial,
+          subtitle: eq.model || 'Tiller',
+          isImage: true
+        };
+      }
+      if (eq.type === 'blade' || eq.type === 'blades') {
+        return {
+          serial: eq.serial,
+          subtitle: eq.model || 'Blade',
+          isImage: true
+        };
+      }
+      return {
+        serial: eq.serial,
+        subtitle: eq.type,
+        isImage: true
+      };
+    }
+    
+    // Group equipment by type
+    function groupEquipmentByType(equipmentList) {
+      const groups = {};
+      equipmentList.forEach(eq => {
+        const type = eq.type;
+        if (!groups[type]) {
+          groups[type] = [];
+        }
+        groups[type].push(eq);
+      });
+      return groups;
+    }
+    
+    // Render grouped equipment display
+    function renderGroupedEquipment(equipmentList, idPrefix) {
+      if (!equipmentList || equipmentList.length === 0) {
+        return '<div class="no-issue-msg">No equipment stored</div>';
+      }
+      
+      const groups = groupEquipmentByType(equipmentList);
+      const typeNames = {
+        'groomer': 'Groomers',
+        'charger': 'Chargers',
+        'tiller': 'Tillers',
+        'tillers': 'Tillers',
+        'blade': 'Blades',
+        'blades': 'Blades',
+        'tracks': 'Tracks',
+        'cross-country': 'Cross Country'
+      };
+      
+      let html = '';
+      for (const type in groups) {
+        const items = groups[type];
+        const icon = getEquipmentIcon({ type: type });
+        const typeName = typeNames[type] || type;
+        const groupId = `${idPrefix}-${type}`;
+        
+        html += `
+          <div class="equipment-group" onclick="toggleEquipmentGroup('${groupId}')">
+            <img src="${icon}" class="eq-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="eq-icon" style="font-size: 24px; display:none;">📦</div>
+            <span>${typeName}</span>
+            <span class="eq-count">(${items.length})</span>
+            <span class="expand-arrow">▶</span>
+          </div>
+          <div class="equipment-group-items" id="${groupId}-list" style="display:none;">
+            ${items.map((eq, index) => renderEquipmentItemDetail(eq, index)).join('')}
+          </div>
+        `;
+      }
+      
+      return html;
+    }
+    
+    // Render individual equipment item detail
+    function renderEquipmentItemDetail(eq, index) {
+      let details = `<span class="detail-label">SN:</span> <span class="detail-value">${escapeHtml(eq.serial || 'N/A')}</span>`;
+      
+      if (eq.type === 'groomer') {
+        if (eq.size) details += ` | <span class="detail-label">Size:</span> <span class="detail-value">${eq.size}</span>`;
+        if (eq.trackType) details += ` | <span class="detail-label">Tracks:</span> <span class="detail-value">${eq.trackType}</span>`;
+        if (eq.tiller) details += ` | <span class="detail-label">Tiller:</span> <span class="detail-value">${escapeHtml(eq.tiller)}</span>`;
+        if (eq.blade) details += ` | <span class="detail-label">Blade:</span> <span class="detail-value">${escapeHtml(eq.blade)}</span>`;
+        if (eq.crossCountryTracks && eq.crossCountryTracks !== 'None') {
+          details += ` | <span class="detail-label">CC Tracks:</span> <span class="detail-value">${eq.crossCountryTracks}</span>`;
+        }
+      } else if (eq.type === 'charger') {
+        if (eq.power) details += ` | <span class="detail-label">Power:</span> <span class="detail-value">${eq.power}</span>`;
+        if (eq.status) details += ` | <span class="detail-label">Status:</span> <span class="detail-value">${eq.status}</span>`;
+      } else if (eq.type === 'tracks') {
+        if (eq.trackType) details += ` | <span class="detail-label">Type:</span> <span class="detail-value">${eq.trackType}</span>`;
+      } else if (eq.type === 'cross-country') {
+        if (eq.trackType) details += ` | <span class="detail-label">Type:</span> <span class="detail-value">${eq.trackType}</span>`;
+      } else if (eq.type === 'tiller' || eq.type === 'tillers') {
+        if (eq.model) details += ` | <span class="detail-label">Model:</span> <span class="detail-value">${escapeHtml(eq.model)}</span>`;
+      } else if (eq.type === 'blade' || eq.type === 'blades') {
+        if (eq.model) details += ` | <span class="detail-label">Model:</span> <span class="detail-value">${escapeHtml(eq.model)}</span>`;
+      }
+      
+      return `
+        <div class="equipment-item-detail" data-index="${index}">
+          ${details}
+        </div>
+      `;
+    }
+    
+    // Toggle equipment group expansion
+    window.toggleEquipmentGroup = function(groupId) {
+      const list = document.getElementById(`${groupId}-list`);
+      const group = list.previousElementSibling;
+      
+      if (list.style.display === 'none') {
+        list.style.display = 'block';
+        group.classList.add('expanded');
+      } else {
+        list.style.display = 'none';
+        group.classList.remove('expanded');
+      }
+    };
+    
+    // Generate year options from 2023 to current year
+    function generateYearOptions(selectedYear) {
+      const currentYear = new Date().getFullYear();
+      let options = '';
+      for (let year = 2023; year <= currentYear; year++) {
+        const selected = String(selectedYear) === String(year) ? 'selected' : '';
+        options += `<option ${selected}>${year}</option>`;
+      }
+      return options;
     }
 
     // Update ski area when equipment location changes
@@ -1458,6 +2076,9 @@
       updatePhoneLink('responsiblePhone', 'responsiblePhoneLink');
       updatePhoneLink('driverPhone', 'driverPhoneLink');
       updatePhoneLink('mechanicPhone', 'mechanicPhoneLink');
+      updatePhoneLink('phone', 'phoneLink');
+      updatePhoneLink('managerPhone', 'managerPhoneLink');
+      updatePhoneLink('technicianPhone', 'technicianPhoneLink');
     }
 
     function showCustomPopup(marker, type, data) {
@@ -1470,6 +2091,7 @@
       if (type === 'groomer') {
         data.software = data.software || { vcu: '', display: '', battery: '', evcc: '', vfd: '' };
         data.reworks = data.reworks || [];
+        data.completedReworks = data.completedReworks || [];
         data.activeIssue = data.activeIssue || null;
         data.archivedIssues = data.archivedIssues || [];
         data.locationHistory = data.locationHistory || [];
@@ -1483,6 +2105,7 @@
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
               <button class="groomer-tab" data-tab="software">Software</button>
+              <button class="groomer-tab" data-tab="reworks">Reworks</button>
               <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
@@ -1497,11 +2120,28 @@
                   <select id="size">
                     <option ${data.size==="280"?"selected":""}>280</option>
                     <option ${data.size==="320"?"selected":""}>320</option>
-                    <option ${data.size==="250"?"selected":""}>250</option>
+                    <option ${data.size==="350"?"selected":""}>350</option>
+                  </select>
+                  <label>Build Year</label>
+                  <select id="buildYear">
+                    ${generateYearOptions(data.buildYear)}
                   </select>
                   <label>Blade Serial</label><input id="blade" value="${escapeHtml(data.blade||"")}">
                   <label>Tiller Serial</label><input id="tiller" value="${escapeHtml(data.tiller||"")}">
-                  <label>Track Type</label><input id="trackType" value="${escapeHtml(data.trackType||"")}">
+                  <label>Cross Country Tracks</label>
+                  <select id="crossCountryTracks">
+                    <option ${data.crossCountryTracks==="None"?"selected":""}>None</option>
+                    <option ${data.crossCountryTracks==="Track Plates"?"selected":""}>Track Plates</option>
+                    <option ${data.crossCountryTracks==="Track Tiller"?"selected":""}>Track Tiller</option>
+                    <option ${data.crossCountryTracks==="Removed"?"selected":""}>Removed</option>
+                  </select>
+                  <label>Track Type</label>
+                  <select id="trackType">
+                    <option ${data.trackType==="None"?"selected":""}>None</option>
+                    <option ${data.trackType==="Rubber"?"selected":""}>Rubber</option>
+                    <option ${data.trackType==="Aluminum"?"selected":""}>Aluminum</option>
+                    <option ${data.trackType==="High ALU"?"selected":""}>High ALU</option>
+                  </select>
                   <label>Track Serial Number</label><input id="trackSerial" value="${escapeHtml(data.trackSerial||"")}">
                   <label>Status</label>
                   <select id="status">
@@ -1540,12 +2180,31 @@
                 <label>EVCC Software</label><input id="sw-evcc" value="${escapeHtml(data.software.evcc||"")}">
                 <label>VFD Software</label><input id="sw-vfd" value="${escapeHtml(data.software.vfd||"")}">
               </div>
-              <div class="section-title">Reworks</div>
+            </div>
+            
+            <div class="groomer-tab-content" id="tab-reworks">
+              <div class="section-title">Active Reworks</div>
               <div class="rework-list" id="reworkList">${renderReworkList(data.reworks)}</div>
               <div class="add-rework-row">
                 <input type="text" id="newReworkInput" placeholder="Enter new rework...">
                 <button class="add-rework-btn" id="addReworkBtn">Add</button>
               </div>
+              
+              ${data.completedReworks && data.completedReworks.length > 0 ? `
+                <div class="rework-archive-section">
+                  <div class="rework-archive-header" id="toggleReworkArchive">
+                    <span>✓ Completed Reworks (${data.completedReworks.length})</span>
+                    <span id="reworkArchiveArrow">▼</span>
+                  </div>
+                  <div class="rework-archive-list" id="reworkArchiveList" style="display: none;">
+                    ${data.completedReworks.map(rework => `
+                      <div class="rework-completed-item">
+                        <span>${escapeHtml(rework)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
             
             <div class="groomer-tab-content" id="tab-issues">
@@ -1564,12 +2223,17 @@
         data.locationHistory = data.locationHistory || [];
         data.activeIssue = data.activeIssue || null;
         data.archivedIssues = data.archivedIssues || [];
+        data.reworks = data.reworks || [];
+        data.completedReworks = data.completedReworks || [];
+        
+        const chargerStatus = data.status || "Working";
         
         formHtml = `
           <div class="popup-inner">
             <div class="groomer-tabs">
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
+              <button class="groomer-tab" data-tab="reworks">Reworks</button>
               <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
@@ -1584,11 +2248,41 @@
                 <label>Serial</label><input id="serial" value="${escapeHtml(data.serial||"")}">
                 <label>SIM PIN</label><input id="pin" value="${escapeHtml(data.pin||"")}">
                 <label>SIM Serial</label><input id="sim" value="${escapeHtml(data.sim||"")}">
+                <label>Status</label>
+                <select id="chargerStatus">
+                  <option ${chargerStatus==="Working"?"selected":""}>Working</option>
+                  <option ${chargerStatus==="Issue"?"selected":""}>Issue</option>
+                </select>
               </div>
             </div>
             
             <div class="groomer-tab-content" id="tab-location">
               <div id="locationSection">${renderLocationSection(data, type)}</div>
+            </div>
+            
+            <div class="groomer-tab-content" id="tab-reworks">
+              <div class="section-title">Active Reworks</div>
+              <div class="rework-list" id="reworkList">${renderReworkList(data.reworks)}</div>
+              <div class="add-rework-row">
+                <input type="text" id="newReworkInput" placeholder="Enter new rework...">
+                <button class="add-rework-btn" id="addReworkBtn">Add</button>
+              </div>
+              
+              ${data.completedReworks && data.completedReworks.length > 0 ? `
+                <div class="rework-archive-section">
+                  <div class="rework-archive-header" id="toggleReworkArchive">
+                    <span>✓ Completed Reworks (${data.completedReworks.length})</span>
+                    <span id="reworkArchiveArrow">▼</span>
+                  </div>
+                  <div class="rework-archive-list" id="reworkArchiveList" style="display: none;">
+                    ${data.completedReworks.map(rework => `
+                      <div class="rework-completed-item">
+                        <span>${escapeHtml(rework)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
             
             <div class="groomer-tab-content" id="tab-issues">
@@ -1618,6 +2312,80 @@
               <label>Planned End</label>
               <input type="date" id="end" value="${data.end||""}">
             </div>
+            <div class="popup-actions">
+              <button class="btn save-btn" id="saveBtn">Save</button>
+              <button class="btn remove-btn" id="removeBtn">Remove</button>
+            </div>
+          </div>
+        `;
+      }
+      
+      if (type === 'warehouse') {
+        data.equipment = data.equipment || [];
+        
+        formHtml = `
+          <div class="popup-inner">
+            <div class="groomer-tabs">
+              <button class="groomer-tab active" data-tab="info">Info</button>
+              <button class="groomer-tab" data-tab="equipment">Equipment</button>
+            </div>
+            
+            <div class="groomer-tab-content active" id="tab-info">
+              <div class="popup-form">
+                <label>Warehouse Name</label>
+                <input id="name" value="${escapeHtml(data.name||"")}">
+                <label>Address</label>
+                <input id="address" value="${escapeHtml(data.address||"")}">
+                <div id="addressLink" class="address-link"></div>
+                <label>Phone Number</label>
+                <input id="phone" value="${escapeHtml(data.phone||"")}">
+                <div id="phoneLink" class="phone-link"></div>
+                
+                <div class="section-title">Warehouse Manager</div>
+                <label>Manager Name</label>
+                <input id="managerName" value="${escapeHtml(data.managerName||"")}">
+                <label>Manager Phone</label>
+                <input id="managerPhone" value="${escapeHtml(data.managerPhone||"")}">
+                <div id="managerPhoneLink" class="phone-link"></div>
+                
+                <div class="section-title">Local Technician</div>
+                <label>Technician Name</label>
+                <input id="technicianName" value="${escapeHtml(data.technicianName||"")}">
+                <label>Technician Phone</label>
+                <input id="technicianPhone" value="${escapeHtml(data.technicianPhone||"")}">
+                <div id="technicianPhoneLink" class="phone-link"></div>
+              </div>
+            </div>
+            
+            <div class="groomer-tab-content" id="tab-equipment">
+              <div class="skiarea-equipment-section">
+                <div class="skiarea-equipment-header">
+                  <span>📦 Stored Equipment (${data.equipment.length})</span>
+                </div>
+                <div class="equipment-list" id="warehouseEquipmentList">
+                  ${renderGroupedEquipment(data.equipment, 'warehouse-eq')}
+                </div>
+                
+                <div class="add-equipment-form">
+                  <div class="section-title" style="margin-top: 8px;">➕ Add Equipment</div>
+                  <div class="form-row">
+                    <select id="newWarehouseEquipmentType">
+                      <option value="groomer">Groomer</option>
+                      <option value="charger">Charger</option>
+                      <option value="tiller">Tiller</option>
+                      <option value="blade">Blade</option>
+                      <option value="tracks">Tracks</option>
+                      <option value="cross-country">Cross Country Tracks</option>
+                    </select>
+                  </div>
+                  <div id="warehouseEquipmentFields" style="margin-top: 8px;">
+                    <!-- Dynamic fields will be inserted here -->
+                  </div>
+                  <button class="add-eq-btn" id="addWarehouseEquipmentBtn">Add Equipment</button>
+                </div>
+              </div>
+            </div>
+            
             <div class="popup-actions">
               <button class="btn save-btn" id="saveBtn">Save</button>
               <button class="btn remove-btn" id="removeBtn">Remove</button>
@@ -1669,20 +2437,7 @@
                   <span>🚜 Current Equipment (${data.equipment.length})</span>
                 </div>
                 <div class="equipment-list" id="currentEquipmentList">
-                  ${data.equipment.length === 0 ? 
-                    '<div class="no-issue-msg">No equipment assigned</div>' :
-                    data.equipment.map((eq, index) => `
-                      <div class="equipment-item" data-index="${index}">
-                        <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
-                        <div class="equipment-info">
-                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                          <div class="equipment-type">${eq.type}</div>
-                          <div class="equipment-dates">Since: ${eq.assignedDate ? formatDate(eq.assignedDate) : 'Unknown'}</div>
-                        </div>
-                        <button class="remove-eq-btn" data-index="${index}" title="Remove">×</button>
-                      </div>
-                    `).join('')
-                  }
+                  ${renderGroupedEquipment(data.equipment, 'skiarea-eq')}
                 </div>
                 
                 <div class="add-equipment-form">
@@ -1691,8 +2446,14 @@
                     <select id="newEquipmentType">
                       <option value="groomer">Groomer</option>
                       <option value="charger">Charger</option>
+                      <option value="tiller">Tiller</option>
+                      <option value="blade">Blade</option>
+                      <option value="tracks">Tracks</option>
+                      <option value="cross-country">Cross Country Tracks</option>
                     </select>
-                    <input type="text" id="newEquipmentSerial" placeholder="Serial number...">
+                  </div>
+                  <div id="skiAreaEquipmentFields" style="margin-top: 8px;">
+                    <!-- Dynamic fields will be inserted here -->
                   </div>
                   <button class="add-eq-btn" id="addEquipmentBtn">Add Equipment</button>
                 </div>
@@ -1704,19 +2465,7 @@
                   <span id="archivedEquipmentArrow">▼</span>
                 </div>
                 <div class="equipment-list" id="archivedEquipmentList" style="display: none;">
-                  ${data.archivedEquipment.length === 0 ? 
-                    '<div class="no-issue-msg">No equipment history</div>' :
-                    data.archivedEquipment.map(eq => `
-                      <div class="equipment-item archived">
-                        <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
-                        <div class="equipment-info">
-                          <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                          <div class="equipment-type">${eq.type}</div>
-                          <div class="equipment-dates">${formatDate(eq.assignedDate)} - ${formatDate(eq.leftDate)}</div>
-                        </div>
-                      </div>
-                    `).join('')
-                  }
+                  ${renderGroupedEquipment(data.archivedEquipment, 'skiarea-archived-eq')}
                 </div>
               </div>
             </div>
@@ -1770,10 +2519,26 @@
       if (type === 'charger') {
         setupLocationChangeHandler(popupEl, data, marker);
         setupChargerIssueHandlers(popupEl, data, marker);
+        setupReworkHandlers(popupEl, data, marker);
+        
+        // Handle charger status change
+        const chargerStatusSelect = popupEl.querySelector('#chargerStatus');
+        if (chargerStatusSelect) {
+          chargerStatusSelect.addEventListener('change', () => {
+            // Update icon based on status
+            data.status = chargerStatusSelect.value;
+            const iconUrl = data.status === 'Issue' ? 'chargerissue.png' : 'charger.png';
+            marker.setIcon(createDynamicIcon(iconUrl));
+          });
+        }
       }
       
       if (type === 'skiarea') {
         setupSkiAreaEquipmentHandlers(popupEl, data, marker);
+      }
+      
+      if (type === 'warehouse') {
+        setupWarehouseEquipmentHandlers(popupEl, data, marker);
       }
       
       setupAddressPhoneLinks(popupEl);
@@ -1799,6 +2564,7 @@
               vfd: popupEl.querySelector('#sw-vfd')?.value || ''
             };
             values.reworks = data.reworks || [];
+            values.completedReworks = data.completedReworks || [];
             values.activeIssue = data.activeIssue || null;
             values.archivedIssues = data.archivedIssues || [];
             values.locationHistory = data.locationHistory || [];
@@ -1810,6 +2576,9 @@
             values.skiAreaAssignedDate = data.skiAreaAssignedDate || null;
             values.activeIssue = data.activeIssue || null;
             values.archivedIssues = data.archivedIssues || [];
+            values.reworks = data.reworks || [];
+            values.completedReworks = data.completedReworks || [];
+            values.status = popupEl.querySelector('#chargerStatus')?.value || 'Working';
           }
           
           if (type === 'skiarea') {
@@ -1817,10 +2586,20 @@
             values.archivedEquipment = data.archivedEquipment || [];
           }
           
+          if (type === 'warehouse') {
+            values.equipment = data.equipment || [];
+          }
+          
           await saveMarker(marker.options.markerId, type, marker.getLatLng(), values);
           
           if (type === 'groomer') {
-            marker.setIcon(values.status === 'Issue' ? icons.groomerissues : icons.groomer);
+            const iconUrl = values.status === 'Issue' ? 'groomerissues.png' : 'groomer.png';
+            marker.setIcon(createDynamicIcon(iconUrl));
+          }
+          
+          if (type === 'charger') {
+            const iconUrl = values.status === 'Issue' ? 'chargerissue.png' : 'charger.png';
+            marker.setIcon(createDynamicIcon(iconUrl));
           }
           
           alert('Saved!');
@@ -1859,6 +2638,90 @@
         });
       }
       
+      // Show/hide equipment-specific fields based on type
+      const typeSelect = popupEl.querySelector('#newEquipmentType');
+      const fieldsContainer = popupEl.querySelector('#skiAreaEquipmentFields');
+      
+      if (typeSelect && fieldsContainer) {
+        const updateFields = () => {
+          const type = typeSelect.value;
+          if (type === 'groomer') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newEquipmentSize" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Size (optional)</option>
+                <option value="280">280</option>
+                <option value="320">320</option>
+                <option value="350">350</option>
+              </select>
+              <select id="newEquipmentTracksMounted" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Tracks Mounted (optional)</option>
+                <option value="None">None</option>
+                <option value="Rubber">Rubber</option>
+                <option value="Aluminum">Aluminum</option>
+                <option value="High ALU">High ALU</option>
+              </select>
+              <input type="text" id="newEquipmentTiller" placeholder="Tiller (optional)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newEquipmentBlade" placeholder="Blade (optional)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newEquipmentCCTracks" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Cross Country Tracks (optional)</option>
+                <option value="None">None</option>
+                <option value="Track Plates">Track Plates</option>
+                <option value="Track Tiller">Track Tiller</option>
+                <option value="Removed">Removed</option>
+              </select>
+            `;
+          } else if (type === 'charger') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newEquipmentPower" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Power (optional)</option>
+                <option value="150 kW">150 kW</option>
+                <option value="30 kW">30 kW</option>
+                <option value="Hypercharger">Hypercharger</option>
+              </select>
+              <select id="newEquipmentStatus" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="Working">Working</option>
+                <option value="Issue">Issue</option>
+              </select>
+            `;
+          } else if (type === 'tiller') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newEquipmentModel" placeholder="Type/Model (optional)..." style="width: 100%; margin-bottom: 8px;">
+            `;
+          } else if (type === 'blade') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newEquipmentModel" placeholder="Type/Model (optional)..." style="width: 100%; margin-bottom: 8px;">
+            `;
+          } else if (type === 'tracks') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newEquipmentTrackType" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Type (optional)</option>
+                <option value="Rubber">Rubber</option>
+                <option value="Aluminum">Aluminum</option>
+                <option value="High ALU">High ALU</option>
+              </select>
+            `;
+          } else if (type === 'cross-country') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newEquipmentSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newEquipmentTrackType" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Type (optional)</option>
+                <option value="Track Plates">Track Plates</option>
+                <option value="Track Tiller">Track Tiller</option>
+                <option value="Removed">Removed</option>
+              </select>
+            `;
+          }
+        };
+        
+        updateFields();
+        typeSelect.addEventListener('change', updateFields);
+      }
+      
       // Add equipment
       const addBtn = popupEl.querySelector('#addEquipmentBtn');
       if (addBtn) {
@@ -1880,21 +2743,51 @@
             return;
           }
           
-          data.equipment.push({
+          const newEquipment = {
             type: eqType,
             serial: serial,
             assignedDate: new Date().toISOString()
-          });
+          };
           
-          serialInput.value = '';
+          if (eqType === 'groomer') {
+            const size = popupEl.querySelector('#newEquipmentSize')?.value;
+            const tracksMounted = popupEl.querySelector('#newEquipmentTracksMounted')?.value;
+            const tiller = popupEl.querySelector('#newEquipmentTiller')?.value.trim();
+            const blade = popupEl.querySelector('#newEquipmentBlade')?.value.trim();
+            const ccTracks = popupEl.querySelector('#newEquipmentCCTracks')?.value;
+            
+            if (size) newEquipment.size = size;
+            if (tracksMounted) newEquipment.trackType = tracksMounted;
+            if (tiller) newEquipment.tiller = tiller;
+            if (blade) newEquipment.blade = blade;
+            if (ccTracks) newEquipment.crossCountryTracks = ccTracks;
+          } else if (eqType === 'charger') {
+            const power = popupEl.querySelector('#newEquipmentPower')?.value;
+            const status = popupEl.querySelector('#newEquipmentStatus')?.value;
+            
+            if (power) newEquipment.power = power;
+            if (status) newEquipment.status = status;
+          } else if (eqType === 'tiller' || eqType === 'blade') {
+            const model = popupEl.querySelector('#newEquipmentModel')?.value.trim();
+            if (model) newEquipment.model = model;
+          } else if (eqType === 'tracks' || eqType === 'cross-country') {
+            const trackType = popupEl.querySelector('#newEquipmentTrackType')?.value;
+            if (trackType) newEquipment.trackType = trackType;
+          }
+          
+          data.equipment.push(newEquipment);
+          
+          // Reset form
+          typeSelect.value = 'groomer';
+          updateFields();
           
           // Re-render equipment list
           refreshEquipmentList(popupEl, data);
         });
       }
       
-      // Remove equipment buttons
-      attachRemoveEquipmentHandlers(popupEl, data);
+      // Remove equipment buttons - not applicable in grouped view
+      // attachRemoveEquipmentHandlers(popupEl, data);
     }
 
     function attachRemoveEquipmentHandlers(popupEl, data) {
@@ -1919,37 +2812,12 @@
     function refreshEquipmentList(popupEl, data) {
       const currentList = popupEl.querySelector('#currentEquipmentList');
       if (currentList) {
-        currentList.innerHTML = data.equipment.length === 0 ? 
-          '<div class="no-issue-msg">No equipment assigned</div>' :
-          data.equipment.map((eq, index) => `
-            <div class="equipment-item" data-index="${index}">
-              <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
-              <div class="equipment-info">
-                <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                <div class="equipment-type">${eq.type}</div>
-                <div class="equipment-dates">Since: ${eq.assignedDate ? formatDate(eq.assignedDate) : 'Unknown'}</div>
-              </div>
-              <button class="remove-eq-btn" data-index="${index}" title="Remove">×</button>
-            </div>
-          `).join('');
-        
-        attachRemoveEquipmentHandlers(popupEl, data);
+        currentList.innerHTML = renderGroupedEquipment(data.equipment, 'skiarea-eq');
       }
       
       const archivedList = popupEl.querySelector('#archivedEquipmentList');
       if (archivedList) {
-        archivedList.innerHTML = data.archivedEquipment.length === 0 ? 
-          '<div class="no-issue-msg">No equipment history</div>' :
-          data.archivedEquipment.map(eq => `
-            <div class="equipment-item archived">
-              <img class="eq-icon" src="${eq.type === 'groomer' ? 'groomer.png' : 'charger.png'}" alt="${eq.type}" />
-              <div class="equipment-info">
-                <div class="equipment-serial">${escapeHtml(eq.serial)}</div>
-                <div class="equipment-type">${eq.type}</div>
-                <div class="equipment-dates">${formatDate(eq.assignedDate)} - ${formatDate(eq.leftDate)}</div>
-              </div>
-            </div>
-          `).join('');
+        archivedList.innerHTML = renderGroupedEquipment(data.archivedEquipment, 'skiarea-archived-eq');
       }
       
       // Update header counts
@@ -1961,6 +2829,175 @@
       const archivedHeader = popupEl.querySelector('#toggleArchivedEquipment span');
       if (archivedHeader) {
         archivedHeader.textContent = `📁 Equipment History (${data.archivedEquipment.length})`;
+      }
+    }
+    
+    // Warehouse Equipment Handlers
+    function setupWarehouseEquipmentHandlers(popupEl, data, marker) {
+      // Show/hide equipment-specific fields based on type
+      const typeSelect = popupEl.querySelector('#newWarehouseEquipmentType');
+      const fieldsContainer = popupEl.querySelector('#warehouseEquipmentFields');
+      
+      if (typeSelect && fieldsContainer) {
+        const updateFields = () => {
+          const type = typeSelect.value;
+          if (type === 'groomer') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newWarehouseSize" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Size (optional)</option>
+                <option value="280">280</option>
+                <option value="320">320</option>
+                <option value="350">350</option>
+              </select>
+              <select id="newWarehouseTracksMounted" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Tracks Mounted (optional)</option>
+                <option value="None">None</option>
+                <option value="Rubber">Rubber</option>
+                <option value="Aluminum">Aluminum</option>
+                <option value="High ALU">High ALU</option>
+              </select>
+              <input type="text" id="newWarehouseTiller" placeholder="Tiller (optional)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newWarehouseBlade" placeholder="Blade (optional)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newWarehouseCCTracks" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Cross Country Tracks (optional)</option>
+                <option value="None">None</option>
+                <option value="Track Plates">Track Plates</option>
+                <option value="Track Tiller">Track Tiller</option>
+                <option value="Removed">Removed</option>
+              </select>
+            `;
+          } else if (type === 'charger') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newWarehousePower" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Power (optional)</option>
+                <option value="150 kW">150 kW</option>
+                <option value="30 kW">30 kW</option>
+                <option value="Hypercharger">Hypercharger</option>
+              </select>
+              <select id="newWarehouseStatus" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="Working">Working</option>
+                <option value="Issue">Issue</option>
+              </select>
+            `;
+          } else if (type === 'tiller') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newWarehouseModel" placeholder="Type/Model (optional)..." style="width: 100%; margin-bottom: 8px;">
+            `;
+          } else if (type === 'blade') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <input type="text" id="newWarehouseModel" placeholder="Type/Model (optional)..." style="width: 100%; margin-bottom: 8px;">
+            `;
+          } else if (type === 'tracks') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newWarehouseTrackType" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Type (optional)</option>
+                <option value="Rubber">Rubber</option>
+                <option value="Aluminum">Aluminum</option>
+                <option value="High ALU">High ALU</option>
+              </select>
+            `;
+          } else if (type === 'cross-country') {
+            fieldsContainer.innerHTML = `
+              <input type="text" id="newWarehouseSerial" placeholder="Serial number (required)..." style="width: 100%; margin-bottom: 8px;">
+              <select id="newWarehouseTrackType" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #121212; color: #f1f1f1; font-size: 15px; margin-bottom: 8px;">
+                <option value="">Type (optional)</option>
+                <option value="Track Plates">Track Plates</option>
+                <option value="Track Tiller">Track Tiller</option>
+                <option value="Removed">Removed</option>
+              </select>
+            `;
+          }
+        };
+        
+        updateFields();
+        typeSelect.addEventListener('change', updateFields);
+      }
+      
+      // Add equipment button
+      const addBtn = popupEl.querySelector('#addWarehouseEquipmentBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const type = typeSelect?.value;
+          const serialInput = popupEl.querySelector('#newWarehouseSerial');
+          
+          const serial = serialInput?.value.trim();
+          if (!serial) {
+            alert('Please enter a serial number');
+            return;
+          }
+          
+          const newEquipment = { type: type, serial: serial };
+          
+          if (type === 'groomer') {
+            const size = popupEl.querySelector('#newWarehouseSize')?.value;
+            const tracksMounted = popupEl.querySelector('#newWarehouseTracksMounted')?.value;
+            const tiller = popupEl.querySelector('#newWarehouseTiller')?.value.trim();
+            const blade = popupEl.querySelector('#newWarehouseBlade')?.value.trim();
+            const ccTracks = popupEl.querySelector('#newWarehouseCCTracks')?.value;
+            
+            if (size) newEquipment.size = size;
+            if (tracksMounted) newEquipment.trackType = tracksMounted;
+            if (tiller) newEquipment.tiller = tiller;
+            if (blade) newEquipment.blade = blade;
+            if (ccTracks) newEquipment.crossCountryTracks = ccTracks;
+          } else if (type === 'charger') {
+            const power = popupEl.querySelector('#newWarehousePower')?.value;
+            const status = popupEl.querySelector('#newWarehouseStatus')?.value;
+            
+            if (power) newEquipment.power = power;
+            if (status) newEquipment.status = status;
+          } else if (type === 'tiller' || type === 'blade') {
+            const model = popupEl.querySelector('#newWarehouseModel')?.value.trim();
+            if (model) newEquipment.model = model;
+          } else if (type === 'tracks' || type === 'cross-country') {
+            const trackType = popupEl.querySelector('#newWarehouseTrackType')?.value;
+            if (trackType) newEquipment.trackType = trackType;
+          }
+          
+          data.equipment.push(newEquipment);
+          
+          // Reset form
+          typeSelect.value = 'groomer';
+          updateFields();
+          
+          refreshWarehouseEquipmentList(popupEl, data);
+        });
+      }
+      
+      // Remove equipment buttons - not applicable for grouped view
+      // attachRemoveWarehouseEquipmentHandlers(popupEl, data);
+    }
+    
+    function attachRemoveWarehouseEquipmentHandlers(popupEl, data) {
+      const removeButtons = popupEl.querySelectorAll('.remove-eq-btn');
+      removeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          
+          if (confirm('Remove this equipment from warehouse?')) {
+            data.equipment.splice(index, 1);
+            refreshWarehouseEquipmentList(popupEl, data);
+          }
+        });
+      });
+    }
+    
+    function refreshWarehouseEquipmentList(popupEl, data) {
+      const list = popupEl.querySelector('#warehouseEquipmentList');
+      if (list) {
+        list.innerHTML = renderGroupedEquipment(data.equipment, 'warehouse-eq');
+      }
+      
+      // Update header count
+      const header = popupEl.querySelector('.skiarea-equipment-header span');
+      if (header && header.textContent.includes('Stored')) {
+        header.textContent = `📦 Stored Equipment (${data.equipment.length})`;
       }
     }
 
@@ -1992,7 +3029,7 @@
           input.value = '';
           
           reworkList.innerHTML = renderReworkList(data.reworks);
-          attachReworkCheckboxListeners(popupEl, data);
+          attachReworkCheckboxListeners(popupEl, data, marker);
         });
         
         input.addEventListener('keydown', (e) => {
@@ -2003,19 +3040,65 @@
         });
       }
       
-      attachReworkCheckboxListeners(popupEl, data);
+      attachReworkCheckboxListeners(popupEl, data, marker);
+      
+      // Setup rework archive toggle
+      const toggleArchive = popupEl.querySelector('#toggleReworkArchive');
+      if (toggleArchive) {
+        toggleArchive.addEventListener('click', () => {
+          const list = popupEl.querySelector('#reworkArchiveList');
+          const arrow = popupEl.querySelector('#reworkArchiveArrow');
+          if (list) {
+            const isHidden = list.style.display === 'none';
+            list.style.display = isHidden ? 'block' : 'none';
+            if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+          }
+        });
+      }
     }
 
-    function attachReworkCheckboxListeners(popupEl, data) {
+    function attachReworkCheckboxListeners(popupEl, data, marker) {
       const checkboxes = popupEl.querySelectorAll('.rework-checkbox');
       checkboxes.forEach(cb => {
         cb.addEventListener('change', () => {
           const index = parseInt(cb.dataset.index);
-          data.reworks.splice(index, 1);
+          const completedRework = data.reworks.splice(index, 1)[0];
           
-          const reworkList = popupEl.querySelector('#reworkList');
-          reworkList.innerHTML = renderReworkList(data.reworks);
-          attachReworkCheckboxListeners(popupEl, data);
+          // Move to completed reworks
+          data.completedReworks = data.completedReworks || [];
+          data.completedReworks.unshift(completedRework);
+          
+          // Re-render the reworks tab
+          const reworkTabContent = popupEl.querySelector('#tab-reworks');
+          if (reworkTabContent) {
+            const archiveHtml = data.completedReworks.length > 0 ? `
+              <div class="rework-archive-section">
+                <div class="rework-archive-header" id="toggleReworkArchive">
+                  <span>✓ Completed Reworks (${data.completedReworks.length})</span>
+                  <span id="reworkArchiveArrow">▼</span>
+                </div>
+                <div class="rework-archive-list" id="reworkArchiveList" style="display: none;">
+                  ${data.completedReworks.map(rework => `
+                    <div class="rework-completed-item">
+                      <span>${escapeHtml(rework)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : '';
+            
+            reworkTabContent.innerHTML = `
+              <div class="section-title">Active Reworks</div>
+              <div class="rework-list" id="reworkList">${renderReworkList(data.reworks)}</div>
+              <div class="add-rework-row">
+                <input type="text" id="newReworkInput" placeholder="Enter new rework...">
+                <button class="add-rework-btn" id="addReworkBtn">Add</button>
+              </div>
+              ${archiveHtml}
+            `;
+            
+            setupReworkHandlers(popupEl, data, marker);
+          }
         });
       });
     }
@@ -2346,10 +3429,21 @@
 
     // Marker Management
     function addMarker(type, latlng, data={}, id, saveToDb=false) {
-      let icon = icons[type];
-      if (type === 'groomer' && data.status === 'Issue') {
-        icon = icons.groomerissues;
+      let icon;
+      let iconUrl = '';
+      if (type === 'groomer') {
+        iconUrl = data.status === 'Issue' ? 'groomerissues.png' : 'groomer.png';
+      } else if (type === 'charger') {
+        iconUrl = data.status === 'Issue' ? 'chargerissue.png' : 'charger.png';
+      } else if (type === 'worker') {
+        iconUrl = 'van.png';
+      } else if (type === 'skiarea') {
+        iconUrl = 'skiareaicon192.png';
+      } else if (type === 'warehouse') {
+        iconUrl = 'Warehouse.png';
       }
+      icon = createDynamicIcon(iconUrl);
+      
       if (markersMap[id]) return;
       
       const marker = L.marker(latlng, { icon: icon, draggable: true });
@@ -2445,10 +3539,11 @@
       const showC = document.getElementById('layerCharger').checked;
       const showW = document.getElementById('layerWorker').checked;
       const showS = document.getElementById('layerSkiarea').checked;
+      const showWh = document.getElementById('layerWarehouse').checked;
       Object.values(markersMap).forEach(m => {
         const type = m.options.markerType;
         if ((type==='groomer' && !showG) || (type==='charger' && !showC) || 
-            (type==='worker' && !showW) || (type==='skiarea' && !showS)) {
+            (type==='worker' && !showW) || (type==='skiarea' && !showS) || (type==='warehouse' && !showWh)) {
           map.removeLayer(m);
         } else {
           map.addLayer(m);
@@ -2460,6 +3555,7 @@
     document.getElementById('layerCharger').addEventListener('change', applyFilters);
     document.getElementById('layerWorker').addEventListener('change', applyFilters);
     document.getElementById('layerSkiarea').addEventListener('change', applyFilters);
+    document.getElementById('layerWarehouse').addEventListener('change', applyFilters);
 
     // Search
     let tempMarker = null;
@@ -2548,6 +3644,159 @@
         });
       });
     }
+    
+    // Rework Modal Functions
+    window.openReworkModal = function() {
+      const modal = document.getElementById('reworkModal');
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+      
+      // Populate build year options dynamically
+      const buildYearSelect = document.getElementById('buildYearFilter');
+      if (buildYearSelect) {
+        buildYearSelect.innerHTML = ''; // Clear existing options
+        const currentYear = new Date().getFullYear();
+        for (let year = 2023; year <= currentYear; year++) {
+          const option = document.createElement('option');
+          option.value = year;
+          option.textContent = year;
+          buildYearSelect.appendChild(option);
+        }
+      }
+      
+      // Close dropdown menus
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    };
+    
+    window.closeReworkModal = function() {
+      const modal = document.getElementById('reworkModal');
+      modal.classList.remove('show');
+      document.body.style.overflow = '';
+      
+      // Reset form
+      document.getElementById('reworkNameGroomer').value = '';
+      document.getElementById('reworkNameCharger').value = '';
+      document.getElementById('filterBySize').checked = false;
+      document.getElementById('filterByBuildYear').checked = false;
+      document.getElementById('filterByCrossCountryTracks').checked = false;
+      document.getElementById('filterByTrackType').checked = false;
+      document.getElementById('filterByPower').checked = false;
+      document.getElementById('sizeSelectContainer').classList.remove('show');
+      document.getElementById('buildYearSelectContainer').classList.remove('show');
+      document.getElementById('crossCountryTracksSelectContainer').classList.remove('show');
+      document.getElementById('trackTypeSelectContainer').classList.remove('show');
+      document.getElementById('powerSelectContainer').classList.remove('show');
+    };
+    
+    // Rework modal tab switching
+    document.querySelectorAll('.rework-modal-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.rework-modal-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.rework-modal-tab-content').forEach(c => c.classList.remove('active'));
+        const tabContent = document.querySelector(`#rework-tab-${tab.dataset.reworkTab}`);
+        if (tabContent) tabContent.classList.add('active');
+      });
+    });
+    
+    // Filter checkbox handlers
+    document.getElementById('filterBySize').addEventListener('change', (e) => {
+      document.getElementById('sizeSelectContainer').classList.toggle('show', e.target.checked);
+    });
+    
+    document.getElementById('filterByBuildYear').addEventListener('change', (e) => {
+      document.getElementById('buildYearSelectContainer').classList.toggle('show', e.target.checked);
+    });
+    
+    document.getElementById('filterByCrossCountryTracks').addEventListener('change', (e) => {
+      document.getElementById('crossCountryTracksSelectContainer').classList.toggle('show', e.target.checked);
+    });
+    
+    document.getElementById('filterByTrackType').addEventListener('change', (e) => {
+      document.getElementById('trackTypeSelectContainer').classList.toggle('show', e.target.checked);
+    });
+    
+    document.getElementById('filterByPower').addEventListener('change', (e) => {
+      document.getElementById('powerSelectContainer').classList.toggle('show', e.target.checked);
+    });
+    
+    window.applyGroomerRework = async function() {
+      const reworkName = document.getElementById('reworkNameGroomer').value.trim();
+      if (!reworkName) {
+        alert('Please enter a rework name');
+        return;
+      }
+      
+      const filterBySize = document.getElementById('filterBySize').checked;
+      const filterByBuildYear = document.getElementById('filterByBuildYear').checked;
+      const filterByCrossCountryTracks = document.getElementById('filterByCrossCountryTracks').checked;
+      const filterByTrackType = document.getElementById('filterByTrackType').checked;
+      
+      const selectedSize = filterBySize ? document.getElementById('sizeFilter').value : null;
+      const selectedBuildYear = filterByBuildYear ? document.getElementById('buildYearFilter').value : null;
+      const selectedCrossCountryTracks = filterByCrossCountryTracks ? document.getElementById('crossCountryTracksFilter').value : null;
+      const selectedTrackType = filterByTrackType ? document.getElementById('trackTypeFilter').value : null;
+      
+      let count = 0;
+      
+      for (const id in allMarkersData) {
+        const markerData = allMarkersData[id];
+        if (markerData.type !== 'groomer') continue;
+        
+        const data = markerData.data || {};
+        
+        // Apply filters
+        if (filterBySize && data.size !== selectedSize) continue;
+        if (filterByBuildYear && String(data.buildYear) !== String(selectedBuildYear)) continue;
+        if (filterByCrossCountryTracks && data.crossCountryTracks !== selectedCrossCountryTracks) continue;
+        if (filterByTrackType && data.trackType !== selectedTrackType) continue;
+        
+        // Add rework
+        data.reworks = data.reworks || [];
+        if (!data.reworks.includes(reworkName)) {
+          data.reworks.push(reworkName);
+          await saveMarker(id, 'groomer', L.latLng(markerData.lat, markerData.lng), data);
+          count++;
+        }
+      }
+      
+      alert(`Rework "${reworkName}" added to ${count} groomer(s)`);
+      closeReworkModal();
+    };
+    
+    window.applyChargerRework = async function() {
+      const reworkName = document.getElementById('reworkNameCharger').value.trim();
+      if (!reworkName) {
+        alert('Please enter a rework name');
+        return;
+      }
+      
+      const filterByPower = document.getElementById('filterByPower').checked;
+      const selectedPower = filterByPower ? document.getElementById('powerFilter').value : null;
+      
+      let count = 0;
+      
+      for (const id in allMarkersData) {
+        const markerData = allMarkersData[id];
+        if (markerData.type !== 'charger') continue;
+        
+        const data = markerData.data || {};
+        
+        // Apply filter
+        if (filterByPower && data.power !== selectedPower) continue;
+        
+        // Add rework
+        data.reworks = data.reworks || [];
+        if (!data.reworks.includes(reworkName)) {
+          data.reworks.push(reworkName);
+          await saveMarker(id, 'charger', L.latLng(markerData.lat, markerData.lng), data);
+          count++;
+        }
+      }
+      
+      alert(`Rework "${reworkName}" added to ${count} charger(s)`);
+      closeReworkModal();
+    };
   </script>
 </body>
 </html>
