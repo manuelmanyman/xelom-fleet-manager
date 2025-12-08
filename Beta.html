@@ -1130,6 +1130,56 @@
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Icon size limiting with zoom
+    function getIconSize(zoom) {
+      const baseSize = 32;
+      const calculatedSize = baseSize + (zoom - 10) * 4;
+      const maxSize = 52; // Cap the maximum size
+      return Math.min(Math.max(calculatedSize, 20), maxSize); // Min 20px, Max 52px
+    }
+
+    function updateIconSizes() {
+      const zoom = map.getZoom();
+      const size = getIconSize(zoom);
+      const anchor = [size / 2, size * 0.84]; // Proportional anchor
+      const popupAnchor = [0, -size * 0.88];
+
+      // Update icon definitions
+      icons.groomer = L.icon({ iconUrl: 'groomer.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+      icons.groomerissues = L.icon({ iconUrl: 'groomerissues.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+      icons.charger = L.icon({ iconUrl: 'charger.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+      icons.chargerissue = L.icon({ iconUrl: 'chargerissue.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+      icons.worker = L.icon({ iconUrl: 'van.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+      icons.skiarea = L.icon({ iconUrl: 'skiareaicon192.png', iconSize:[size,size], iconAnchor:anchor, popupAnchor:popupAnchor });
+
+      // Update all existing markers with new icon sizes
+      Object.values(markersMap).forEach(marker => {
+        const type = marker.options.markerType;
+        const data = allMarkersData[marker.options.markerId]?.data || {};
+        
+        let newIcon;
+        if (type === 'groomer') {
+          newIcon = data.status === 'Issue' ? icons.groomerissues : icons.groomer;
+        } else if (type === 'charger') {
+          newIcon = data.status === 'Issue' ? icons.chargerissue : icons.charger;
+        } else if (type === 'worker') {
+          newIcon = icons.worker;
+        } else if (type === 'skiarea') {
+          newIcon = icons.skiarea;
+        }
+        
+        if (newIcon) {
+          marker.setIcon(newIcon);
+        }
+      });
+    }
+
+    // Listen to zoom events
+    map.on('zoomend', updateIconSizes);
+    
+    // Initial icon size update
+    updateIconSizes();
+
     let markersMap = {};
     let allMarkersData = {};
     let currentPopupData = null;
@@ -1289,73 +1339,81 @@
         <div class="popup-inner">
           <h2 style="color: #ffcc00; margin-top: 0;">Add Rework</h2>
           
-          <div class="popup-form">
-            <label>Rework Name</label>
-            <input type="text" id="reworkName" placeholder="Enter rework name...">
-            
-            <div class="section-title">Apply to Groomers</div>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="groomerFilter" value="all" style="width: auto; margin: 0;" checked>
-              All Groomers
-            </label>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="groomerFilter" value="size" style="width: auto; margin: 0;">
-              By Size
-            </label>
-            <select id="groomerSizeFilter" style="margin-left: 28px; margin-bottom: 12px;">
-              <option value="">Select Size</option>
-              ${Array.from(sizes).map(s => `<option value="${s}">${s}</option>`).join('')}
-            </select>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="groomerFilter" value="year" style="width: auto; margin: 0;">
-              By Construction Year
-            </label>
-            <select id="groomerYearFilter" style="margin-left: 28px; margin-bottom: 12px;">
-              <option value="">Select Year</option>
-              ${years.map(y => `<option value="${y}">${y}</option>`).join('')}
-            </select>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="groomerFilter" value="trackType" style="width: auto; margin: 0;">
-              By Track Type
-            </label>
-            <select id="groomerTrackTypeFilter" style="margin-left: 28px; margin-bottom: 12px;">
-              <option value="">Select Track Type</option>
-              ${Array.from(trackTypes).map(t => `<option value="${t}">${t}</option>`).join('')}
-            </select>
-            
-            <div class="section-title">Apply to Chargers</div>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="chargerFilter" value="all" style="width: auto; margin: 0;" checked>
-              All Chargers
-            </label>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <input type="radio" name="chargerFilter" value="power" style="width: auto; margin: 0;">
-              By Power
-            </label>
-            <select id="chargerPowerFilter" style="margin-left: 28px; margin-bottom: 12px;">
-              <option value="">Select Power</option>
-              ${Array.from(powers).map(p => `<option value="${p}">${p}</option>`).join('')}
-            </select>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-top: 16px;">
-              <input type="checkbox" id="applyToGroomers" checked style="width: auto; margin: 0;">
-              Apply to Groomers
-            </label>
-            
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-              <input type="checkbox" id="applyToChargers" style="width: auto; margin: 0;">
-              Apply to Chargers
-            </label>
+          <div class="groomer-tabs">
+            <button class="groomer-tab active" data-tab="groomers">Groomers</button>
+            <button class="groomer-tab" data-tab="chargers">Chargers</button>
           </div>
           
-          <div class="popup-actions">
-            <button class="btn save-btn" id="applyReworkBtn" style="grid-column: 1 / -1;">Apply Rework</button>
+          <div class="groomer-tab-content active" id="rework-tab-groomers">
+            <div class="popup-form">
+              <label>Rework Name</label>
+              <input type="text" id="groomerReworkName" placeholder="Enter rework name...">
+              
+              <div class="section-title">Filter Groomers</div>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="allGroomersCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                All Groomers
+              </label>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="bySizeCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                By Size
+              </label>
+              <select id="groomerSizeFilter" style="margin-left: 28px; margin-bottom: 12px;" disabled>
+                <option value="">Select Size</option>
+                ${Array.from(sizes).map(s => `<option value="${s}">${s}</option>`).join('')}
+              </select>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="byYearCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                By Year
+              </label>
+              <select id="groomerYearFilter" style="margin-left: 28px; margin-bottom: 12px;" disabled>
+                <option value="">Select Year</option>
+                ${years.map(y => `<option value="${y}">${y}</option>`).join('')}
+              </select>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="byTrackTypeCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                By Track Type
+              </label>
+              <select id="groomerTrackTypeFilter" style="margin-left: 28px; margin-bottom: 12px;" disabled>
+                <option value="">Select Track Type</option>
+                ${Array.from(trackTypes).map(t => `<option value="${t}">${t}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div class="popup-actions">
+              <button class="btn save-btn" id="applyGroomerReworkBtn" style="grid-column: 1 / -1;">Apply Rework</button>
+            </div>
+          </div>
+          
+          <div class="groomer-tab-content" id="rework-tab-chargers">
+            <div class="popup-form">
+              <label>Rework Name</label>
+              <input type="text" id="chargerReworkName" placeholder="Enter rework name...">
+              
+              <div class="section-title">Filter Chargers</div>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="allChargersCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                All Chargers
+              </label>
+              
+              <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="byPowerCheck" style="width: 20px; height: 20px; accent-color: #ffcc00; margin: 0;">
+                By Power
+              </label>
+              <select id="chargerPowerFilter" style="margin-left: 28px; margin-bottom: 12px;" disabled>
+                <option value="">Select Power</option>
+                ${Array.from(powers).map(p => `<option value="${p}">${p}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div class="popup-actions">
+              <button class="btn save-btn" id="applyChargerReworkBtn" style="grid-column: 1 / -1;">Apply Rework</button>
+            </div>
           </div>
         </div>
       `;
@@ -1364,89 +1422,161 @@
       document.getElementById('addReworkModal').style.display = 'block';
       document.body.style.overflow = 'hidden';
       
-      // Setup apply button
-      document.getElementById('applyReworkBtn').addEventListener('click', async () => {
-        const reworkName = document.getElementById('reworkName').value.trim();
+      // Setup tab switching
+      const tabs = document.querySelectorAll('#addReworkModal .groomer-tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          document.querySelectorAll('#addReworkModal .groomer-tab-content').forEach(c => c.classList.remove('active'));
+          const tabContent = document.querySelector(`#rework-tab-${tab.dataset.tab}`);
+          if (tabContent) tabContent.classList.add('active');
+        });
+      });
+      
+      // Setup checkbox interactions for groomers
+      const allGroomersCheck = document.getElementById('allGroomersCheck');
+      const bySizeCheck = document.getElementById('bySizeCheck');
+      const byYearCheck = document.getElementById('byYearCheck');
+      const byTrackTypeCheck = document.getElementById('byTrackTypeCheck');
+      const sizeSelect = document.getElementById('groomerSizeFilter');
+      const yearSelect = document.getElementById('groomerYearFilter');
+      const trackTypeSelect = document.getElementById('groomerTrackTypeFilter');
+      
+      allGroomersCheck.addEventListener('change', () => {
+        if (allGroomersCheck.checked) {
+          bySizeCheck.checked = false;
+          byYearCheck.checked = false;
+          byTrackTypeCheck.checked = false;
+          sizeSelect.disabled = true;
+          yearSelect.disabled = true;
+          trackTypeSelect.disabled = true;
+        }
+      });
+      
+      bySizeCheck.addEventListener('change', () => {
+        if (bySizeCheck.checked) {
+          allGroomersCheck.checked = false;
+          sizeSelect.disabled = false;
+        } else {
+          sizeSelect.disabled = true;
+        }
+      });
+      
+      byYearCheck.addEventListener('change', () => {
+        if (byYearCheck.checked) {
+          allGroomersCheck.checked = false;
+          yearSelect.disabled = false;
+        } else {
+          yearSelect.disabled = true;
+        }
+      });
+      
+      byTrackTypeCheck.addEventListener('change', () => {
+        if (byTrackTypeCheck.checked) {
+          allGroomersCheck.checked = false;
+          trackTypeSelect.disabled = false;
+        } else {
+          trackTypeSelect.disabled = true;
+        }
+      });
+      
+      // Setup checkbox interactions for chargers
+      const allChargersCheck = document.getElementById('allChargersCheck');
+      const byPowerCheck = document.getElementById('byPowerCheck');
+      const powerSelect = document.getElementById('chargerPowerFilter');
+      
+      allChargersCheck.addEventListener('change', () => {
+        if (allChargersCheck.checked) {
+          byPowerCheck.checked = false;
+          powerSelect.disabled = true;
+        }
+      });
+      
+      byPowerCheck.addEventListener('change', () => {
+        if (byPowerCheck.checked) {
+          allChargersCheck.checked = false;
+          powerSelect.disabled = false;
+        } else {
+          powerSelect.disabled = true;
+        }
+      });
+      
+      // Setup apply button for groomers
+      document.getElementById('applyGroomerReworkBtn').addEventListener('click', async () => {
+        const reworkName = document.getElementById('groomerReworkName').value.trim();
         if (!reworkName) {
           alert('Please enter a rework name');
           return;
         }
         
-        const applyToGroomers = document.getElementById('applyToGroomers').checked;
-        const applyToChargers = document.getElementById('applyToChargers').checked;
+        let updatedCount = 0;
         
-        if (!applyToGroomers && !applyToChargers) {
-          alert('Please select at least one machine type to apply the rework to');
+        for (const id in allMarkersData) {
+          const m = allMarkersData[id];
+          if (m.type !== 'groomer') continue;
+          
+          let shouldApply = false;
+          
+          if (allGroomersCheck.checked) {
+            shouldApply = true;
+          } else if (bySizeCheck.checked && sizeSelect.value) {
+            shouldApply = m.data?.size === sizeSelect.value;
+          } else if (byYearCheck.checked && yearSelect.value) {
+            shouldApply = m.data?.constructionYear === yearSelect.value;
+          } else if (byTrackTypeCheck.checked && trackTypeSelect.value) {
+            shouldApply = m.data?.trackType === trackTypeSelect.value;
+          }
+          
+          if (shouldApply) {
+            const data = m.data || {};
+            data.reworks = data.reworks || [];
+            if (!data.reworks.includes(reworkName)) {
+              data.reworks.push(reworkName);
+              await saveMarker(id, 'groomer', L.latLng(m.lat, m.lng), data);
+              updatedCount++;
+            }
+          }
+        }
+        
+        alert(`Rework "${reworkName}" added to ${updatedCount} groomer(s)!`);
+        closeAddReworkModal();
+      });
+      
+      // Setup apply button for chargers
+      document.getElementById('applyChargerReworkBtn').addEventListener('click', async () => {
+        const reworkName = document.getElementById('chargerReworkName').value.trim();
+        if (!reworkName) {
+          alert('Please enter a rework name');
           return;
         }
         
         let updatedCount = 0;
         
-        // Apply to groomers
-        if (applyToGroomers) {
-          const groomerFilterType = document.querySelector('input[name="groomerFilter"]:checked').value;
-          const sizeFilter = document.getElementById('groomerSizeFilter').value;
-          const yearFilter = document.getElementById('groomerYearFilter').value;
-          const trackTypeFilter = document.getElementById('groomerTrackTypeFilter').value;
+        for (const id in allMarkersData) {
+          const m = allMarkersData[id];
+          if (m.type !== 'charger') continue;
           
-          for (const id in allMarkersData) {
-            const m = allMarkersData[id];
-            if (m.type !== 'groomer') continue;
-            
-            let shouldApply = false;
-            
-            if (groomerFilterType === 'all') {
-              shouldApply = true;
-            } else if (groomerFilterType === 'size' && sizeFilter) {
-              shouldApply = m.data?.size === sizeFilter;
-            } else if (groomerFilterType === 'year' && yearFilter) {
-              shouldApply = m.data?.constructionYear === yearFilter;
-            } else if (groomerFilterType === 'trackType' && trackTypeFilter) {
-              shouldApply = m.data?.trackType === trackTypeFilter;
-            }
-            
-            if (shouldApply) {
-              const data = m.data || {};
-              data.reworks = data.reworks || [];
-              if (!data.reworks.includes(reworkName)) {
-                data.reworks.push(reworkName);
-                await saveMarker(id, 'groomer', L.latLng(m.lat, m.lng), data);
-                updatedCount++;
-              }
+          let shouldApply = false;
+          
+          if (allChargersCheck.checked) {
+            shouldApply = true;
+          } else if (byPowerCheck.checked && powerSelect.value) {
+            shouldApply = m.data?.power === powerSelect.value;
+          }
+          
+          if (shouldApply) {
+            const data = m.data || {};
+            data.reworks = data.reworks || [];
+            if (!data.reworks.includes(reworkName)) {
+              data.reworks.push(reworkName);
+              await saveMarker(id, 'charger', L.latLng(m.lat, m.lng), data);
+              updatedCount++;
             }
           }
         }
         
-        // Apply to chargers
-        if (applyToChargers) {
-          const chargerFilterType = document.querySelector('input[name="chargerFilter"]:checked').value;
-          const powerFilter = document.getElementById('chargerPowerFilter').value;
-          
-          for (const id in allMarkersData) {
-            const m = allMarkersData[id];
-            if (m.type !== 'charger') continue;
-            
-            let shouldApply = false;
-            
-            if (chargerFilterType === 'all') {
-              shouldApply = true;
-            } else if (chargerFilterType === 'power' && powerFilter) {
-              shouldApply = m.data?.power === powerFilter;
-            }
-            
-            if (shouldApply) {
-              const data = m.data || {};
-              data.reworks = data.reworks || [];
-              if (!data.reworks.includes(reworkName)) {
-                data.reworks.push(reworkName);
-                await saveMarker(id, 'charger', L.latLng(m.lat, m.lng), data);
-                updatedCount++;
-              }
-            }
-          }
-        }
-        
-        alert(`Rework "${reworkName}" added to ${updatedCount} machine(s)!`);
+        alert(`Rework "${reworkName}" added to ${updatedCount} charger(s)!`);
         closeAddReworkModal();
       });
     };
@@ -1685,6 +1815,7 @@
               <button class="groomer-tab active" data-tab="general">General</button>
               <button class="groomer-tab" data-tab="location">Location</button>
               <button class="groomer-tab" data-tab="software">Software</button>
+              <button class="groomer-tab" data-tab="reworks">Reworks</button>
               <button class="groomer-tab" data-tab="issues">Issues</button>
             </div>
             
@@ -1714,7 +1845,7 @@
                     <option ${data.trackType==="Track Tiller"?"selected":""}>Track Tiller</option>
                     <option ${data.trackType==="Removed"?"selected":""}>Removed</option>
                   </select>
-                  <label>Track Serial Number</label><input id="trackSerial" value="${escapeHtml(data.trackSerial||"")}">>
+                  <label>Track Serial Number</label><input id="trackSerial" value="${escapeHtml(data.trackSerial||"")}">
                   <label>Status</label>
                   <select id="status">
                     <option ${status==="Working"?"selected":""}>Working</option>
@@ -1752,6 +1883,9 @@
                 <label>EVCC Software</label><input id="sw-evcc" value="${escapeHtml(data.software.evcc||"")}">
                 <label>VFD Software</label><input id="sw-vfd" value="${escapeHtml(data.software.vfd||"")}">
               </div>
+            </div>
+            
+            <div class="groomer-tab-content" id="tab-reworks">
               <div class="section-title">Reworks</div>
               <div class="rework-list" id="reworkList">${renderReworkList(data.reworks)}</div>
               <div class="add-rework-row">
